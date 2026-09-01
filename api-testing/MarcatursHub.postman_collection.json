@@ -1,0 +1,71 @@
+{
+  "info": {
+    "name": "MarcatursHub",
+    "description": "MarcatursHub API workspace. Only Health is implemented in MH-BE-001. Remaining folders are placeholders.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/health",
+            "description": "Unauthenticated liveness/readiness check. Does not require a bearer token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 when operational', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "pm.test('Canonical success envelope', function () {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data.status).to.be.oneOf(['ok', 'degraded']);",
+                  "  pm.expect(json.data.service).to.eql('marcaturshub-api');",
+                  "  pm.expect(json.data.api_version).to.eql('v1');",
+                  "  pm.expect(json.data.checks.application).to.eql('ok');",
+                  "});",
+                  "pm.test('Does not expose secrets', function () {",
+                  "  const raw = pm.response.text();",
+                  "  pm.expect(raw.toLowerCase()).to.not.include('app_key');",
+                  "  pm.expect(raw.toLowerCase()).to.not.include('password');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    { "name": "Authentication", "item": [], "description": "Placeholder. Implemented in a later authentication task." },
+    { "name": "Businesses", "item": [], "description": "Placeholder." },
+    { "name": "Ambassadors", "item": [], "description": "Placeholder." },
+    { "name": "Verification", "item": [], "description": "Placeholder." },
+    { "name": "Campaigns", "item": [], "description": "Placeholder." },
+    { "name": "Conversations", "item": [], "description": "Placeholder." },
+    { "name": "Deals", "item": [], "description": "Placeholder." },
+    { "name": "Payments", "item": [], "description": "Placeholder." },
+    { "name": "Commissions", "item": [], "description": "Placeholder." },
+    { "name": "Disputes", "item": [], "description": "Placeholder." },
+    { "name": "Administration", "item": [], "description": "Placeholder." }
+  ]
+}
