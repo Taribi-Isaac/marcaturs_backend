@@ -29,6 +29,15 @@ class ApplicationFoundationTest extends TestCase
         $this->assertTrue(Schema::hasTable('migrations'));
         $this->assertTrue(Schema::hasTable('users'));
         $this->assertTrue(Schema::hasTable('personal_access_tokens'));
+        $this->assertTrue(Schema::hasTable('campaign_marketing_resources'));
+        $this->assertTrue(Schema::hasTable('conversations'));
+        $this->assertTrue(Schema::hasTable('conversation_participants'));
+        $this->assertTrue(Schema::hasTable('messages'));
+        $this->assertTrue(Schema::hasTable('deals'));
+        $this->assertTrue(Schema::hasTable('deal_events'));
+        $this->assertTrue(Schema::hasTable('payment_evidence'));
+        $this->assertTrue(Schema::hasTable('commissions'));
+        $this->assertTrue(Schema::hasTable('commission_events'));
     }
 
     public function test_success_and_paginated_responses_use_the_canonical_envelope(): void

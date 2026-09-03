@@ -28,7 +28,8 @@ final class RedactSensitiveContextProcessor implements ProcessorInterface
         'api_key',
         'aws_secret_access_key',
         'aws_access_key_id',
-        'paystack_secret',
+        'paystack_secret_key',
+        'x-paystack-signature',
         'secret_key',
         'private_key',
         'credit_card',
@@ -44,6 +45,16 @@ final class RedactSensitiveContextProcessor implements ProcessorInterface
         'identity_document',
         'id_document',
         'passport_number',
+        'text_value',
+        'reviewer_notes',
+        'original_filename',
+        'storage_path',
+        'signed_url',
+        'payment_account_identifier',
+        'payment_instructions',
+        'content',
+        'report_reason',
+        'message_body',
     ];
 
     public function __invoke(LogRecord $record): LogRecord

@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountAccess;
+use App\Http\Middleware\EnsureUserHasRole;
 use App\Support\Api\ApiExceptionRenderer;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,12 +18,27 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         apiPrefix: 'api',
     )
+    ->withBroadcasting(
+        __DIR__.'/../routes/channels.php',
+        [
+            'prefix' => 'api',
+            'middleware' => ['api', 'auth:sanctum', 'account.access'],
+        ],
+    )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->redirectGuestsTo(function (Request $request): ?string {
+            return $request->is('api/*') ? null : '/login';
+        });
         $middleware->statefulApi();
         $middleware->throttleApi('api');
+        $middleware->alias([
+            'account.access' => EnsureAccountAccess::class,
+            'role' => EnsureUserHasRole::class,
+        ]);
         $middleware->preventRequestsDuringMaintenance(except: [
             'api/v1/health',
+            'api/v1/webhooks/paystack',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -41,7 +59,11 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (ValidationException $exception) => $exception->status(400),
         );
 
-        $exceptions->render(function (\Throwable $e, Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             return app(ApiExceptionRenderer::class)->render($e, $request);
         });
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('campaigns:process-lifecycle')->everyFifteenMinutes();
+        $schedule->command('commissions:process-overdue')->everyFifteenMinutes();
     })->create();

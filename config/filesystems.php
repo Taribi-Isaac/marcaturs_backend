@@ -48,6 +48,15 @@ return [
             'report' => false,
         ],
 
+        'campaign_media' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/campaign-media'),
+            'visibility' => 'private',
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

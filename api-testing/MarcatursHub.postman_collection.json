@@ -1,13 +1,89 @@
 {
   "info": {
     "name": "MarcatursHub",
-    "description": "MarcatursHub API workspace. Only Health is implemented in MH-BE-001. Remaining folders are placeholders.",
+    "description": "MarcatursHub API workspace. Implemented through Commission liability (MH-BE-019). Remaining folders are placeholders.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "businessEmail",
+      "value": "biz.demo@example.com"
+    },
+    {
+      "key": "ambassadorEmail",
+      "value": "ambassador.demo@example.com"
+    },
+    {
+      "key": "password",
+      "value": "password123"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin.demo@example.com"
+    },
+    {
+      "key": "requirementId",
+      "value": "1"
+    },
+    {
+      "key": "submissionId",
+      "value": "1"
+    },
+    {
+      "key": "evidenceId",
+      "value": "1"
+    },
+    {
+      "key": "categoryId",
+      "value": "1"
+    },
+    {
+      "key": "campaignId",
+      "value": "1"
+    },
+    {
+      "key": "campaignVersionNumber",
+      "value": "1"
+    },
+    {
+      "key": "resourceId",
+      "value": "1"
+    },
+    {
+      "key": "conversationId",
+      "value": "1"
+    },
+    {
+      "key": "dealId",
+      "value": "1"
+    },
+    {
+      "key": "paymentEvidenceId",
+      "value": "1"
+    },
+    {
+      "key": "commissionId",
+      "value": "1"
+    },
+    {
+      "key": "extensionPackageId",
+      "value": "1"
+    },
+    {
+      "key": "paystackReference",
+      "value": ""
+    },
+    {
+      "key": "paystackSignature",
+      "value": ""
     }
   ],
   "item": [
@@ -56,15 +132,1381 @@
         }
       ]
     },
-    { "name": "Authentication", "item": [], "description": "Placeholder. Implemented in a later authentication task." },
-    { "name": "Businesses", "item": [], "description": "Placeholder." },
-    { "name": "Ambassadors", "item": [], "description": "Placeholder." },
-    { "name": "Verification", "item": [], "description": "Placeholder." },
-    { "name": "Campaigns", "item": [], "description": "Placeholder." },
-    { "name": "Conversations", "item": [], "description": "Placeholder." },
-    { "name": "Deals", "item": [], "description": "Placeholder." },
+    {
+      "name": "Authentication",
+      "description": "Public registration is limited to BUSINESS and AMBASSADOR. There is no public Register Admin request.",
+      "item": [
+        {
+          "name": "Register Business",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Business\",\n  \"email\": \"{{businessEmail}}\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\",\n  \"role\": \"BUSINESS\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Ambassador",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo Ambassador\",\n  \"email\": \"{{ambassadorEmail}}\",\n  \"password\": \"{{password}}\",\n  \"password_confirmation\": \"{{password}}\",\n  \"role\": \"AMBASSADOR\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (pm.response.code === 201 && json.data && json.data.token) {",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{businessEmail}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeded', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.eql(true);",
+                  "  pm.expect(json.data.user.password).to.be.undefined;",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/me"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Businesses",
+      "description": "Authenticated BUSINESS users manage only their own profile. There is no public or ID-based participant profile API in this task.",
+      "item": [
+        {
+          "name": "Create Complete Business Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"legal_name\": \"Ada Ventures Ltd\",\n  \"trading_name\": \"Ada Store\",\n  \"description\": \"Retail business\",\n  \"category\": \"retail\",\n  \"address\": \"12 Marina, Lagos\",\n  \"operating_location\": \"Lagos\",\n  \"contact_email\": \"ops@example.com\",\n  \"contact_phone\": \"08012345678\",\n  \"website\": \"https://example.com\",\n  \"social_links\": {\n    \"instagram\": \"https://instagram.com/ada\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/businesses/me"
+          }
+        },
+        {
+          "name": "My Business Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/businesses/me"
+          }
+        },
+        {
+          "name": "Update Business Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated retail description\",\n  \"operating_location\": \"Lagos and Ogun\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/businesses/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ambassadors",
+      "description": "Authenticated AMBASSADOR users manage only their own profile.",
+      "item": [
+        {
+          "name": "Create Complete Ambassador Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"display_name\": \"Chidi Promoter\",\n  \"profile_description\": \"Campus and market promoter\",\n  \"location\": \"Abuja\",\n  \"skills\": [\"social-media\", \"field-sales\"],\n  \"marketing_interests\": [\"education\", \"retail\"],\n  \"experience\": \"3 years promoting consumer brands\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/ambassadors/me"
+          }
+        },
+        {
+          "name": "My Ambassador Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/ambassadors/me"
+          }
+        },
+        {
+          "name": "Update Ambassador Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": \"Abuja and Kaduna\",\n  \"skills\": [\"social-media\", \"events\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/ambassadors/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verification — Participant",
+      "description": "BUSINESS or AMBASSADOR. Complete a profile first. Placeholders only — do not attach real identity documents.",
+      "item": [
+        {
+          "name": "List My Requirements",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/verification/requirements"
+          }
+        },
+        {
+          "name": "My Verification Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/verification/status"
+          }
+        },
+        {
+          "name": "Submit Text Requirement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requirement_id\": {{requirementId}},\n  \"text_value\": \"Example Legal Name Ltd\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/verification/submissions"
+          }
+        },
+        {
+          "name": "Resubmit Requirement",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text_value\": \"Corrected Example Legal Name Ltd\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/verification/submissions/{{submissionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verification — Administration",
+      "description": "ADMIN only. Use a token from marcaturs:create-admin. Do not store real evidence in examples.",
+      "item": [
+        {
+          "name": "List Requirements",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/requirements"
+          }
+        },
+        {
+          "name": "Create Requirement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Legal business name\",\n  \"description\": \"Provide the registered legal name.\",\n  \"participant_type\": \"BUSINESS\",\n  \"requirement_type\": \"text\",\n  \"is_required\": true,\n  \"is_active\": true,\n  \"sort_order\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/verification/requirements"
+          }
+        },
+        {
+          "name": "Update Requirement",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true,\n  \"is_required\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/verification/requirements/{{requirementId}}"
+          }
+        },
+        {
+          "name": "List Submissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions?status=pending"
+          }
+        },
+        {
+          "name": "Show Submission",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}"
+          }
+        },
+        {
+          "name": "Start Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/start-review"
+          }
+        },
+        {
+          "name": "Approve Submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Internal reviewer note (not visible to the participant).\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/approve"
+          }
+        },
+        {
+          "name": "Reject Submission",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"The submitted information is insufficient.\",\n  \"notes\": \"Internal note.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/reject"
+          }
+        },
+        {
+          "name": "Request More Information",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Please provide a clearer copy of the same evidence.\",\n  \"notes\": \"Internal note.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/request-information"
+          }
+        },
+        {
+          "name": "Submission Audit Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/events"
+          }
+        },
+        {
+          "name": "Download Evidence",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/verification/submissions/{{submissionId}}/evidence/{{evidenceId}}/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "Public read of active, non-prohibited marketplace categories. Not a hard-coded sector list.",
+      "item": [
+        {
+          "name": "List Visible Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/categories"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories — Administration",
+      "description": "ADMIN only. Create and update category definitions, including listing_status and is_active.",
+      "item": [
+        {
+          "name": "List All Categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/categories"
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Professional Services\",\n  \"description\": \"Administrator-defined category.\",\n  \"listing_status\": \"allowed\",\n  \"is_active\": true,\n  \"sort_order\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/categories"
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listing_status\": \"restricted\",\n  \"is_active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/categories/{{categoryId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Marketplace",
+      "description": "Public discovery. Active and expiring campaigns with a published version. No Sanctum required.",
+      "item": [
+        {
+          "name": "List Marketplace Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/marketplace/campaigns?status=active&per_page=15"
+          }
+        },
+        {
+          "name": "Show Marketplace Campaign",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/api/v1/marketplace/campaigns/{{campaignId}}"
+          }
+        },
+        {
+          "name": "Download Marketplace Resource",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/marketplace/campaigns/{{campaignId}}/resources/{{resourceId}}/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns — Business",
+      "description": "BUSINESS campaign shell and versioned commercial terms. Complete a profile first. Not discovery, deals, or payments.",
+      "item": [
+        {
+          "name": "List My Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns"
+          }
+        },
+        {
+          "name": "Create Draft Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Example draft campaign\",\n  \"category_id\": {{categoryId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns"
+          }
+        },
+        {
+          "name": "Show My Campaign",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}"
+          }
+        },
+        {
+          "name": "Update Draft Campaign",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated draft campaign title\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}"
+          }
+        },
+        {
+          "name": "List Campaign Versions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/versions"
+          }
+        },
+        {
+          "name": "Create Draft Version",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_name\": \"Example product\",\n  \"product_description\": \"What the customer buys.\",\n  \"pricing_method\": \"fixed\",\n  \"price_amount\": 50000,\n  \"price_currency\": \"NGN\",\n  \"service_area\": \"Lagos\",\n  \"commission_type\": \"percentage\",\n  \"commission_rate\": 10,\n  \"commission_trigger\": \"payment_confirmation\",\n  \"commission_payment_deadline_days\": 7,\n  \"refund_cancellation_rules\": \"Valid refunds follow the published settlement rules.\",\n  \"payment_destination_name\": \"Example Business Ltd\",\n  \"payment_provider\": \"Example Bank\",\n  \"payment_account_identifier\": \"0000000000\",\n  \"payment_instructions\": \"Pay the business directly. MarcatursHub does not receive this payment.\",\n  \"terms\": \"Campaign participation terms.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/versions"
+          }
+        },
+        {
+          "name": "Show Campaign Version",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/versions/{{campaignVersionNumber}}"
+          }
+        },
+        {
+          "name": "Update Draft Version",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price_amount\": 60000,\n  \"commission_rate\": 12\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/versions/{{campaignVersionNumber}}"
+          }
+        },
+        {
+          "name": "Publish Version",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/versions/{{campaignVersionNumber}}/publish"
+          }
+        },
+        {
+          "name": "Submit Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/submit"
+          }
+        },
+        {
+          "name": "Deactivate Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/deactivate"
+          }
+        },
+        {
+          "name": "List Marketing Resources",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources"
+          }
+        },
+        {
+          "name": "Upload Marketing Resource",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "type", "value": "image", "type": "text" },
+                { "key": "title", "value": "Hero image", "type": "text" },
+                { "key": "description", "value": "Approved storefront photo", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources"
+          }
+        },
+        {
+          "name": "Show Marketing Resource",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources/{{resourceId}}"
+          }
+        },
+        {
+          "name": "Replace Marketing Resource",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated hero image", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources/{{resourceId}}"
+          }
+        },
+        {
+          "name": "Download Own Marketing Resource",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources/{{resourceId}}/download"
+          }
+        },
+        {
+          "name": "Delete Marketing Resource",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/resources/{{resourceId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Lifecycle — Administration",
+      "description": "ADMIN moderation. Approve does not activate. Publish version first.",
+      "item": [
+        {
+          "name": "List Campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns?status=submitted"
+          }
+        },
+        {
+          "name": "Show Campaign",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}"
+          }
+        },
+        {
+          "name": "Approve Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/approve"
+          }
+        },
+        {
+          "name": "Reject Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Please clarify the commission terms.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/reject"
+          }
+        },
+        {
+          "name": "Request Modification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Please revise the service area.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/request-modification"
+          }
+        },
+        {
+          "name": "Activate Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/activate"
+          }
+        },
+        {
+          "name": "Suspend Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Policy review.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/suspend"
+          }
+        },
+        {
+          "name": "Close Campaign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Closed by administration.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/close"
+          }
+        },
+        {
+          "name": "List Campaign Marketing Resources",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/resources"
+          }
+        },
+        {
+          "name": "Download Campaign Marketing Resource",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/resources/{{resourceId}}/download"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Extensions — Business",
+      "description": "BUSINESS paid listing extension. Paystack platform purchase only. Publish ≠ activate ≠ extend.",
+      "item": [
+        {
+          "name": "List Extension Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/extension-packages"
+          }
+        },
+        {
+          "name": "List My Extensions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/extensions"
+          }
+        },
+        {
+          "name": "Initialize Extension Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package_id\": {{extensionPackageId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/extensions/initialize"
+          }
+        },
+        {
+          "name": "Verify Extension Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{paystackReference}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/extensions/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Extension Packages — Administration",
+      "description": "ADMIN configurable duration and price. Example packages only; not product constants.",
+      "item": [
+        {
+          "name": "List Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaign-extension-packages"
+          }
+        },
+        {
+          "name": "Create Package",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"30 additional days\",\n  \"duration_days\": 30,\n  \"amount_minor\": 1500000,\n  \"currency\": \"NGN\",\n  \"sort_order\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaign-extension-packages"
+          }
+        },
+        {
+          "name": "Update Package",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": true,\n  \"amount_minor\": 1500000\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaign-extension-packages/{{extensionPackageId}}"
+          }
+        },
+        {
+          "name": "List Campaign Extensions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/extensions"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Paystack Webhook",
+      "description": "Provider callback. Signature required. Do not send secrets in the body.",
+      "item": [
+        {
+          "name": "Charge Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Paystack-Signature", "value": "{{paystackSignature}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paystackReference}}\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/webhooks/paystack"
+          }
+        }
+      ]
+    },
+    { "name": "Conversations", "description": "One Business–Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.", "item": [
+        {
+          "name": "List My Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/conversations"
+          }
+        },
+        {
+          "name": "Open Conversation (Ambassador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business_id\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/conversations"
+          }
+        },
+        {
+          "name": "Open Conversation (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ambassador_id\": 2\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/conversations"
+          }
+        },
+        {
+          "name": "Authorize Conversation Channel",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"socket_id\": \"1234.5678\",\n  \"channel_name\": \"private-conversation.{{conversationId}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/broadcasting/auth"
+          }
+        },
+        {
+          "name": "Show Conversation",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}"
+          }
+        },
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/messages"
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Interested in promoting this campaign.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/messages"
+          }
+        },
+        {
+          "name": "Mark Conversation Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/read"
+          }
+        },
+        {
+          "name": "Report Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Harassment in this thread.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/conversations/{{conversationId}}/report"
+          }
+        },
+        {
+          "name": "List Reported Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/conversations"
+          }
+        },
+        {
+          "name": "Show Reported Conversation",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/conversations/{{conversationId}}"
+          }
+        },
+        {
+          "name": "List Reported Conversation Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/conversations/{{conversationId}}/messages"
+          }
+        }
+      ] },
+    { "name": "Deals", "description": "Deal create/list/show, payment evidence, and Business confirm/reject (MH-BE-018). Confirm seals the Deal. Reject leaves payment_pending. No Commission table.", "item": [
+        {
+          "name": "Create Deal (Ambassador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"campaign_id\": {{campaignId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/deals"
+          }
+        },
+        {
+          "name": "List My Deals",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/deals"
+          }
+        },
+        {
+          "name": "Show Deal",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}"
+          }
+        },
+        {
+          "name": "Submit Payment Evidence (Ambassador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "kind", "value": "receipt", "type": "text" },
+                { "key": "reference_number", "value": "TRF-1001", "type": "text" },
+                { "key": "amount", "value": "100000", "type": "text" },
+                { "key": "note", "value": "Customer paid the Business directly.", "type": "text" },
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/payment-evidence"
+          }
+        },
+        {
+          "name": "List Payment Evidence",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/payment-evidence"
+          }
+        },
+        {
+          "name": "Show Payment Evidence",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/payment-evidence/{{paymentEvidenceId}}"
+          }
+        },
+        {
+          "name": "Download Payment Evidence File",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/payment-evidence/{{paymentEvidenceId}}/download"
+          }
+        },
+        {
+          "name": "Confirm Deal (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirmed_payment_amount\": 100000\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/confirm"
+          }
+        },
+        {
+          "name": "Reject Payment Evidence (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Payment not found on the business account.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/payment-evidence/{{paymentEvidenceId}}/reject"
+          }
+        }
+      ] },
     { "name": "Payments", "item": [], "description": "Placeholder." },
-    { "name": "Commissions", "item": [], "description": "Placeholder." },
+    { "name": "Commissions", "description": "Business→Ambassador liability and settlement recording (MH-BE-019/020). due → paid → received. No payout.", "item": [
+        {
+          "name": "List My Commissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/commissions"
+          }
+        },
+        {
+          "name": "Show Commission",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/api/v1/commissions/{{commissionId}}"
+          }
+        },
+        {
+          "name": "Mark Commission Paid (Business)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payment_reference\": \"TRF-1001\",\n  \"payment_note\": \"Paid from the business account. Declaration only; not verified proof.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/commissions/{{commissionId}}/mark-paid"
+          }
+        },
+        {
+          "name": "Confirm Commission Received (Ambassador)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{baseUrl}}/api/v1/commissions/{{commissionId}}/confirm-received"
+          }
+        }
+      ] },
     { "name": "Disputes", "item": [], "description": "Placeholder." },
     { "name": "Administration", "item": [], "description": "Placeholder." }
   ]
