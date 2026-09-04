@@ -9,8 +9,11 @@ use App\Models\Deal;
 use App\Models\DealEvent;
 use App\Models\PaymentEvidence;
 use App\Models\User;
+use App\Support\Api\ApiErrorCode;
+use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,6 +44,14 @@ class PaymentEvidenceService
         try {
             return DB::transaction(function () use ($ambassador, $deal, $attributes, $kind, $stored): PaymentEvidence {
                 $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->firstOrFail();
+
+                if ($locked->status->isCancelled()) {
+                    throw new HttpResponseException(ApiResponse::error(
+                        ApiErrorCode::CONFLICT,
+                        'Payment evidence cannot be submitted for a cancelled Deal.',
+                        409,
+                    ));
+                }
 
                 $evidence = new PaymentEvidence;
                 $evidence->deal_id = $locked->id;

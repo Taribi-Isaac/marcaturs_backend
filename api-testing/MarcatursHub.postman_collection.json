@@ -1916,7 +1916,7 @@
     },
     {
       "name": "Deals",
-      "description": "Deal create/list/show, payment evidence, and Business confirm/reject. Confirm seals the Deal. Reject leaves payment_pending. List/show include derived has_open_dispute and open_dispute_count (MH-BE-026B). No DealStatus disputed.",
+      "description": "Deal create/list/show, payment evidence, Business confirm/reject, and party cancel while payment_pending (MH-BE-027C). Cancel is terminal. No sealed/completed cancel, refund, or clawback.",
       "item": [
         {
           "name": "Create Deal (Ambassador)",
@@ -1975,6 +1975,31 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/deals/{{dealId}}"
+          }
+        },
+        {
+          "name": "Cancel Deal (Party)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer withdrew before payment.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/deals/{{dealId}}/cancel"
           }
         },
         {

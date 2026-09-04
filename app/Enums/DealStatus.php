@@ -10,6 +10,8 @@ enum DealStatus: string
 
     case Completed = 'completed';
 
+    case Cancelled = 'cancelled';
+
     public function isSealed(): bool
     {
         return $this === self::Sealed;
@@ -18,6 +20,16 @@ enum DealStatus: string
     public function isCompleted(): bool
     {
         return $this === self::Completed;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this === self::Cancelled;
+    }
+
+    public function allowsCancellation(): bool
+    {
+        return $this === self::PaymentPending;
     }
 
     public function allowsConfirmation(): bool

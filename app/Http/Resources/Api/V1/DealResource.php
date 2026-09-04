@@ -46,6 +46,7 @@ class DealResource extends JsonResource
             'expected_transaction_amount' => $this->expected_transaction_amount,
             'confirmed_payment_amount' => $this->confirmed_payment_amount,
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),
+            'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'has_open_dispute' => $this->openDisputeCount() > 0,
             'open_dispute_count' => $this->openDisputeCount(),
             'commission' => $this->whenLoaded('commission', fn () => $this->commission === null ? null : [

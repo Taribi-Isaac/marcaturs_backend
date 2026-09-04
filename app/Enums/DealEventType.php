@@ -17,4 +17,6 @@ enum DealEventType: string
     case PaymentRejected = 'payment_rejected';
 
     case Completed = 'deal_completed';
+
+    case Cancelled = 'deal_cancelled';
 }

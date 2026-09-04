@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\CampaignVersionController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\CommissionController;
 use App\Http\Controllers\Api\V1\ConversationController;
+use App\Http\Controllers\Api\V1\DealCancellationController;
 use App\Http\Controllers\Api\V1\DealConfirmationController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\DisputeController;
@@ -102,6 +103,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::middleware('role:BUSINESS,AMBASSADOR')->prefix('deals')->name('deals.')->scopeBindings()->group(function (): void {
             Route::get('/', [DealController::class, 'index'])->name('index');
             Route::get('/{deal}', [DealController::class, 'show'])->name('show');
+            Route::post('/{deal}/cancel', [DealCancellationController::class, 'cancel'])->name('cancel');
             Route::get('/{deal}/payment-evidence', [PaymentEvidenceController::class, 'index'])->name('payment-evidence.index');
             Route::get('/{deal}/payment-evidence/{paymentEvidence}', [PaymentEvidenceController::class, 'show'])->name('payment-evidence.show');
             Route::get('/{deal}/payment-evidence/{paymentEvidence}/download', [PaymentEvidenceController::class, 'download'])->name('payment-evidence.download');

@@ -36,6 +36,7 @@ class Deal extends Model
             'expected_transaction_amount' => 'decimal:2',
             'confirmed_payment_amount' => 'decimal:2',
             'confirmed_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

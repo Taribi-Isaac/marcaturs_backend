@@ -16,9 +16,12 @@ Conversation, Campaign discovery, and PlatformPayment remain independent. Paymen
 
 ```text
 payment_pending → sealed → completed
+payment_pending → cancelled
 ```
 
-`completed` is the normal terminal status (MH-BE-023B). It is set automatically when Commission receipt is confirmed. Cancellation and refund remain deferred. Disputes do not change Deal status (MH-BE-025D).
+`completed` is the normal terminal status (MH-BE-023B). It is set automatically when Commission receipt is confirmed. `cancelled` is a terminal exception status for pre-seal abandonment (MH-BE-027C). Sealed/completed Deals cannot be cancelled in MVP. Disputes do not change Deal status (MH-BE-025D).
+
+Deal `status` values: `payment_pending` / `sealed` / `completed` / `cancelled`. An open Dispute does not freeze settlement or completion.
 
 ## Creation
 
@@ -65,7 +68,27 @@ List and show also expose derived open-dispute visibility (MH-BE-026B), computed
 | `has_open_dispute` | `true` when at least one related Dispute is open per `DisputeStatus::isOpen()` |
 | `open_dispute_count` | Count of those open Disputes (multiple open cases per Deal are allowed) |
 
-Deal `status` remains `payment_pending` / `sealed` / `completed` only. An open Dispute does not freeze settlement or completion.
+Deal `status` remains one of `payment_pending` / `sealed` / `completed` / `cancelled`. An open Dispute does not freeze settlement or completion.
+
+## Cancellation (MH-BE-027C)
+
+`POST /api/v1/deals/{deal}/cancel` — Deal **BUSINESS** or Deal **AMBASSADOR** (unilateral).
+
+```json
+{ "reason": "Customer withdrew before payment." }
+```
+
+`reason` is required (free text). Eligible only while `payment_pending`. Transition: `payment_pending → cancelled` (terminal). Already cancelled returns `200` without a second event or notifications. `sealed` / `completed` return `409`.
+
+| Effect | Behavior |
+| --- | --- |
+| Commission | None created or mutated |
+| Payment evidence | Existing rows retained; new submissions `409` |
+| Dispute | Not created/closed by cancel |
+| Audit | `deal_cancelled` DealEvent; `cancelled_at` set once |
+| Notifications | Both parties, in-app + email |
+
+Refund, clawback, and post-seal cancellation are out of scope.
 
 ## Payment evidence (MH-BE-016)
 
@@ -131,7 +154,7 @@ There is **no** separate Complete Deal API. When the Ambassador successfully con
 
 and writes exactly one Deal Event `deal_completed` (actor = Ambassador; metadata: `commission_id`, `received_at`). Idempotent retries of confirm-received do not duplicate Commission or Deal completion events and do not alter `received_at`.
 
-Only `sealed → completed` is allowed for completion. `payment_pending → completed` is not permitted. `completed` is terminal for the normal lifecycle in this slice (no revert to `sealed` or `payment_pending`). Cancellation, refund, and dispute remain deferred.
+Only `sealed → completed` is allowed for completion. `payment_pending → completed` is not permitted. `completed` is terminal for the normal lifecycle in this slice (no revert to `sealed` or `payment_pending`). Pre-seal cancellation is `payment_pending → cancelled` (MH-BE-027C). Refund and post-seal cancellation remain deferred.
 
 Overdue Commissions may still be settled late; late settlement still completes the Deal. Overdue is never a Deal status.
 
