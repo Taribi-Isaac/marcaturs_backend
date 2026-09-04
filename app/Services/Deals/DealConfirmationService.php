@@ -11,6 +11,7 @@ use App\Models\Deal;
 use App\Models\DealEvent;
 use App\Models\PaymentEvidence;
 use App\Models\User;
+use App\Services\Notifications\CommissionNotificationDispatcher;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use App\Support\Money\DecimalMoney;
@@ -23,6 +24,7 @@ class DealConfirmationService
 {
     public function __construct(
         private readonly CommissionLiabilityService $liabilities,
+        private readonly CommissionNotificationDispatcher $commissionNotifications,
     ) {}
 
     /**
@@ -32,7 +34,9 @@ class DealConfirmationService
     {
         $this->assertBusinessOwner($business, $deal);
 
-        return DB::transaction(function () use ($business, $deal, $attributes): Deal {
+        $createdCommission = null;
+
+        $sealed = DB::transaction(function () use ($business, $deal, $attributes, &$createdCommission): Deal {
             $locked = Deal::query()->whereKey($deal->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->status->isSealed()) {
@@ -99,18 +103,18 @@ class DealConfirmationService
             $locked->confirmed_at = now();
             $locked->save();
 
-            $commission = $this->liabilities->createForSealedDeal($locked);
+            $createdCommission = $this->liabilities->createForSealedDeal($locked);
 
             $metadata = [
                 'payment_evidence_ids' => $evidenceIds,
-                'commission_id' => $commission->id,
+                'commission_id' => $createdCommission->id,
                 'confirmed_payment_amount' => $confirmedPaymentAmount,
                 'commission_type' => $locked->commission_type->value,
                 'commission_rate' => $locked->commission_rate,
                 'commission_amount' => $commissionAmount,
                 'snapshot_commission_amount' => $snapshotCommissionAmount,
                 'confirmed_at' => $locked->confirmed_at?->toIso8601String(),
-                'commission_due_at' => $commission->due_at?->toIso8601String(),
+                'commission_due_at' => $createdCommission->due_at?->toIso8601String(),
             ];
 
             $this->writeEvent($locked, $business, DealEventType::PaymentConfirmed, $previous, $metadata);
@@ -119,6 +123,12 @@ class DealConfirmationService
 
             return $this->withShowRelations($locked);
         });
+
+        if ($createdCommission !== null) {
+            $this->commissionNotifications->notifyDue($createdCommission);
+        }
+
+        return $sealed;
     }
 
     /**

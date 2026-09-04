@@ -449,7 +449,7 @@ In-app notification foundation (MH-BE-022C). Notifications are persisted via Lar
 | `GET` | `/api/v1/notifications/{id}` | Sanctum | Owner | Show own notification |
 | `POST` | `/api/v1/notifications/{id}/read` | Sanctum | Owner | Mark notification as read (idempotent) |
 
-The notification API is scoped to the authenticated user's own notifications only. Cross-user access returns `404`. Restricted/suspended/banned accounts are blocked by the `account.access` middleware. Commission reminders, notification preferences, deletion, and mark-all-read are deferred to MH-BE-022D+.
+The notification API is scoped to the authenticated user's own notifications only. Cross-user access returns `404`. Restricted/suspended/banned accounts are blocked by the `account.access` middleware for API access. Transactional Commission reminders (MH-BE-022E) may still be *delivered* to suspended/banned recipients; delivery eligibility is separate from API access. Notification preferences, deletion, and mark-all-read remain deferred.
 
 See [docs/categories.md](categories.md) and [docs/campaigns.md](campaigns.md).
 

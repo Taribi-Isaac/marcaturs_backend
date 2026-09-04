@@ -7,6 +7,7 @@ use App\Enums\CommissionStatus;
 use App\Models\Commission;
 use App\Models\CommissionEvent;
 use App\Models\User;
+use App\Services\Notifications\CommissionNotificationDispatcher;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -19,6 +20,10 @@ use Illuminate\Support\Facades\Log;
 
 class CommissionSettlementService
 {
+    public function __construct(
+        private readonly CommissionNotificationDispatcher $commissionNotifications,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $attributes
      */
@@ -33,7 +38,9 @@ class CommissionSettlementService
         }
 
         try {
-            return DB::transaction(function () use ($business, $commission, $attributes): Commission {
+            $transitioned = false;
+
+            $updated = DB::transaction(function () use ($business, $commission, $attributes, &$transitioned): Commission {
                 $locked = Commission::query()->whereKey($commission->id)->lockForUpdate()->firstOrFail();
 
                 if ($locked->business_user_id !== $business->id) {
@@ -82,8 +89,16 @@ class CommissionSettlementService
                     'has_payment_reference' => $locked->payment_reference !== null,
                 ]);
 
+                $transitioned = true;
+
                 return $this->withShowRelations($locked);
             });
+
+            if ($transitioned) {
+                $this->commissionNotifications->notifyPaid($updated);
+            }
+
+            return $updated;
         } catch (UniqueConstraintViolationException|QueryException $exception) {
             if (! $this->isUniqueViolation($exception)) {
                 throw $exception;
@@ -123,7 +138,9 @@ class CommissionSettlementService
         }
 
         try {
-            return DB::transaction(function () use ($ambassador, $commission): Commission {
+            $transitioned = false;
+
+            $updated = DB::transaction(function () use ($ambassador, $commission, &$transitioned): Commission {
                 $locked = Commission::query()->whereKey($commission->id)->lockForUpdate()->firstOrFail();
 
                 if ($locked->ambassador_user_id !== $ambassador->id) {
@@ -167,8 +184,16 @@ class CommissionSettlementService
                     'new_status' => $locked->status->value,
                 ]);
 
+                $transitioned = true;
+
                 return $this->withShowRelations($locked);
             });
+
+            if ($transitioned) {
+                $this->commissionNotifications->notifyReceived($updated);
+            }
+
+            return $updated;
         } catch (UniqueConstraintViolationException|QueryException $exception) {
             if (! $this->isUniqueViolation($exception)) {
                 throw $exception;

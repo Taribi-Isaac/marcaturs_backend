@@ -104,7 +104,9 @@ Immutable after create: Deal, parties, campaign version, type, rate, amount, cur
 
 Late `due → paid` is allowed (`paid_at` may be after `due_at`). Deal status is unchanged (no Deal completion).
 
-Overdue is a **derived condition**, not a persisted status. A Commission is overdue when `status = due AND now > due_at`. Once `paid` or `received`, `is_overdue` is always `false`. The scheduler (`commissions:process-overdue`, every 15 minutes) writes a one-time immutable `commission_overdue` event on `commission_events` when overdue is first detected. The event has a null actor (system), `due_at`, and `detected_at` metadata. It persists after payment so historical lateness is auditable. No notifications or reminders are sent.
+Overdue is a **derived condition**, not a persisted status. A Commission is overdue when `status = due AND now > due_at`. Once `paid` or `received`, `is_overdue` is always `false`. The scheduler (`commissions:process-overdue`, every 15 minutes) writes a one-time immutable `commission_overdue` event on `commission_events` when overdue is first detected. The event has a null actor (system), `due_at`, and `detected_at` metadata. It persists after payment so historical lateness is auditable.
+
+Commission reminders (MH-BE-022E) are observational notifications only. The scheduler (`commissions:process-reminders`, every 15 minutes) derives five Business payment-pressure slots from `due_at` (−2, 0, +1, +4, +7 calendar days). Ambassador receives status awareness (`commission_due`, single `commission_overdue`, `commission_paid`) and does not receive the Business pressure cadence. Reminders never mutate Commission or Deal state.
 
 | Method | Path | Role |
 | --- | --- | --- |

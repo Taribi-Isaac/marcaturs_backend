@@ -66,4 +66,5 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('campaigns:process-lifecycle')->everyFifteenMinutes();
         $schedule->command('commissions:process-overdue')->everyFifteenMinutes();
+        $schedule->command('commissions:process-reminders')->everyFifteenMinutes();
     })->create();
