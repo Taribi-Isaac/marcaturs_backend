@@ -99,4 +99,12 @@ class Deal extends Model
     {
         return $this->hasOne(Commission::class);
     }
+
+    /**
+     * @return HasMany<Dispute, $this>
+     */
+    public function disputes(): HasMany
+    {
+        return $this->hasMany(Dispute::class)->orderBy('id');
+    }
 }

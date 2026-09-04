@@ -14,6 +14,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Domain seeders will be added in dedicated engineering tasks.
+        $this->call([
+            DisputeCategorySeeder::class,
+        ]);
     }
 }

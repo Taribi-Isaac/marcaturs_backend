@@ -2,7 +2,7 @@
 
 API-first Laravel service for MarcatursHub (TARIZEFA LIMITED).
 
-This repository is the MarcatursHub API. Deal foundation through payment confirmation, Commission liability, Commission settlement recording, and Commission overdue detection (MH-BE-015–021) are implemented. Commission reminders/dispute, Featured visibility, and customer payments remain out of scope until their dedicated tasks. Platform Paystack is used only for campaign listing extensions (MH-BE-008).
+This repository is the MarcatursHub API. Deal foundation through Deal completion (MH-BE-015–023B), Commission overdue/reminders (MH-BE-021–022E), and Dispute foundation (MH-BE-025D) are implemented. Featured visibility, cancellation/refund, and customer payments remain out of scope until their dedicated tasks. Platform Paystack is used only for campaign listing extensions (MH-BE-008).
 
 Authoritative product documents live in `../foundational_docs`. This README covers implementation setup only.
 

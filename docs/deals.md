@@ -10,7 +10,7 @@ Ambassador ──────────────── ► Deal
                               └── Payment Evidence
 ```
 
-Conversation, Campaign discovery, and PlatformPayment remain independent. Payment evidence (MH-BE-016) does **not** confirm payment, seal the Deal, or create commission. Disputes, Chat Create Deal, and Deal WebSockets remain later slices.
+Conversation, Campaign discovery, and PlatformPayment remain independent. Payment evidence (MH-BE-016) does **not** confirm payment, seal the Deal, or create commission. Disputes are a separate case domain ([docs/disputes.md](disputes.md)). Chat Create Deal and Deal WebSockets remain later slices.
 
 ## Status lifecycle
 
@@ -18,7 +18,7 @@ Conversation, Campaign discovery, and PlatformPayment remain independent. Paymen
 payment_pending → sealed → completed
 ```
 
-`completed` is the normal terminal status (MH-BE-023B). It is set automatically when Commission receipt is confirmed. Cancellation, refund, and dispute statuses are not implemented in this slice.
+`completed` is the normal terminal status (MH-BE-023B). It is set automatically when Commission receipt is confirmed. Cancellation and refund remain deferred. Disputes do not change Deal status (MH-BE-025D).
 
 ## Creation
 

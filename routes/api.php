@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminCampaignExtensionController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignMarketingResourceController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
+use App\Http\Controllers\Api\V1\Admin\AdminDisputeController;
 use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
 use App\Http\Controllers\Api\V1\AmbassadorProfileController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\V1\CommissionController;
 use App\Http\Controllers\Api\V1\ConversationController;
 use App\Http\Controllers\Api\V1\DealConfirmationController;
 use App\Http\Controllers\Api\V1\DealController;
+use App\Http\Controllers\Api\V1\DisputeController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\MarketplaceCampaignController;
 use App\Http\Controllers\Api\V1\NotificationController;
@@ -118,6 +120,23 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/{commission}/confirm-received', [CommissionController::class, 'confirmReceived'])->name('confirm-received');
         });
 
+        Route::middleware('role:BUSINESS,AMBASSADOR')->prefix('dispute-categories')->name('dispute-categories.')->group(function (): void {
+            Route::get('/', [DisputeController::class, 'categories'])->name('index');
+        });
+
+        Route::middleware('role:BUSINESS,AMBASSADOR')->prefix('disputes')->name('disputes.')->scopeBindings()->group(function (): void {
+            Route::get('/', [DisputeController::class, 'index'])->name('index');
+            Route::get('/{dispute}', [DisputeController::class, 'show'])->name('show');
+            Route::post('/{dispute}/attachments', [DisputeController::class, 'storeAttachment'])
+                ->middleware('throttle:uploads')
+                ->name('attachments.store');
+            Route::get('/{dispute}/attachments/{attachment}/download', [DisputeController::class, 'downloadAttachment'])
+                ->name('attachments.download');
+        });
+
+        Route::middleware('role:BUSINESS,AMBASSADOR')->post('/deals/{deal}/disputes', [DisputeController::class, 'store'])
+            ->name('deals.disputes.store');
+
         Route::prefix('notifications')->name('notifications.')->group(function (): void {
             Route::get('/', [NotificationController::class, 'index'])->name('index');
             Route::get('/{notification}', [NotificationController::class, 'show'])->name('show');
@@ -186,6 +205,28 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/', [AdminConversationController::class, 'index'])->name('index');
             Route::get('/{conversation}', [AdminConversationController::class, 'show'])->name('show');
             Route::get('/{conversation}/messages', [AdminConversationController::class, 'messages'])->name('messages.index');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin/dispute-categories')->name('admin.dispute-categories.')->group(function (): void {
+            Route::get('/', [AdminDisputeController::class, 'indexCategories'])->name('index');
+            Route::post('/', [AdminDisputeController::class, 'storeCategory'])->name('store');
+            Route::patch('/{disputeCategory}', [AdminDisputeController::class, 'updateCategory'])->name('update');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin/disputes')->name('admin.disputes.')->scopeBindings()->group(function (): void {
+            Route::get('/', [AdminDisputeController::class, 'index'])->name('index');
+            Route::get('/{dispute}', [AdminDisputeController::class, 'show'])->name('show');
+            Route::post('/{dispute}/start-review', [AdminDisputeController::class, 'startReview'])->name('start-review');
+            Route::post('/{dispute}/request-evidence', [AdminDisputeController::class, 'requestEvidence'])->name('request-evidence');
+            Route::post('/{dispute}/resume-review', [AdminDisputeController::class, 'resumeReview'])->name('resume-review');
+            Route::post('/{dispute}/mark-decision-pending', [AdminDisputeController::class, 'markDecisionPending'])->name('mark-decision-pending');
+            Route::post('/{dispute}/resolve', [AdminDisputeController::class, 'resolve'])->name('resolve');
+            Route::post('/{dispute}/close', [AdminDisputeController::class, 'close'])->name('close');
+            Route::post('/{dispute}/attachments', [AdminDisputeController::class, 'storeAttachment'])
+                ->middleware('throttle:uploads')
+                ->name('attachments.store');
+            Route::get('/{dispute}/attachments/{attachment}/download', [AdminDisputeController::class, 'downloadAttachment'])
+                ->name('attachments.download');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/categories')->name('admin.categories.')->group(function (): void {

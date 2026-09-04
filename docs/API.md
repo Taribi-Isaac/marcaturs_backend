@@ -437,7 +437,31 @@ A Deal is a versioned commercial record (Ambassador + Business + Campaign + Camp
 | `POST` | `/api/v1/commissions/{id}/mark-paid` | Sanctum | BUSINESS owner | `due → paid` (optional reference/note) |
 | `POST` | `/api/v1/commissions/{id}/confirm-received` | Sanctum | AMBASSADOR payee | `paid → received` |
 
-New Deals only for `active` or `expiring` campaigns with a published current version. Status starts at `payment_pending`. Confirmation seals to `sealed`, creates one Commission (`UNIQUE deal_id`), and writes `payment_confirmed`, `deal_sealed`, `commission_due`. Settlement recording is `due → paid → received` on the Commission (MH-BE-020). Successful Ambassador `confirm-received` automatically completes the Deal (`sealed → completed`) and writes `deal_completed` in the same transaction (MH-BE-023B); there is no separate completion API. `is_overdue` (derived: `status = due AND now > due_at`) is exposed on Commission responses (MH-BE-021). Overdue detection writes a one-time `commission_overdue` audit event. Payout, disputes, cancellation/refund, and Chat integration are not in this slice.
+New Deals only for `active` or `expiring` campaigns with a published current version. Status starts at `payment_pending`. Confirmation seals to `sealed`, creates one Commission (`UNIQUE deal_id`), and writes `payment_confirmed`, `deal_sealed`, `commission_due`. Settlement recording is `due → paid → received` on the Commission (MH-BE-020). Successful Ambassador `confirm-received` automatically completes the Deal (`sealed → completed`) and writes `deal_completed` in the same transaction (MH-BE-023B); there is no separate completion API. `is_overdue` (derived: `status = due AND now > due_at`) is exposed on Commission responses (MH-BE-021). Overdue detection writes a one-time `commission_overdue` audit event. See [docs/disputes.md](disputes.md) for Dispute cases (MH-BE-025D). Payout, cancellation/refund, and Chat integration are not in this slice.
+
+## Disputes
+
+Operational investigation cases (MH-BE-025D). Separate from Deal status. See [docs/disputes.md](disputes.md).
+
+| Method | Path | Auth | Role | Purpose |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/v1/dispute-categories` | Sanctum | BUSINESS, AMBASSADOR | List active categories |
+| `POST` | `/api/v1/deals/{deal}/disputes` | Sanctum | Deal party | Report Issue → `submitted` |
+| `GET` | `/api/v1/disputes` | Sanctum | Party | List own Disputes |
+| `GET` | `/api/v1/disputes/{id}` | Sanctum | Party | Show own Dispute |
+| `POST` | `/api/v1/disputes/{id}/attachments` | Sanctum | Party | Upload private attachment |
+| `GET` | `/api/v1/disputes/{id}/attachments/{id}/download` | Sanctum | Party | Download attachment |
+| `GET/POST/PATCH` | `/api/v1/admin/dispute-categories` | Sanctum | ADMIN | Manage categories |
+| `GET` | `/api/v1/admin/disputes` | Sanctum | ADMIN | List all |
+| `GET` | `/api/v1/admin/disputes/{id}` | Sanctum | ADMIN | Show + related Deal/Commission |
+| `POST` | `/api/v1/admin/disputes/{id}/start-review` | Sanctum | ADMIN | `submitted → under_review` |
+| `POST` | `/api/v1/admin/disputes/{id}/request-evidence` | Sanctum | ADMIN | → `evidence_requested` |
+| `POST` | `/api/v1/admin/disputes/{id}/resume-review` | Sanctum | ADMIN | → `under_review` |
+| `POST` | `/api/v1/admin/disputes/{id}/mark-decision-pending` | Sanctum | ADMIN | → `decision_pending` |
+| `POST` | `/api/v1/admin/disputes/{id}/resolve` | Sanctum | ADMIN | → `resolved` |
+| `POST` | `/api/v1/admin/disputes/{id}/close` | Sanctum | ADMIN | → `closed` |
+
+No `DealStatus::disputed`. No settlement freeze. Resolution does not mutate Commission/Deal financial fields. Notifications: `dispute_opened`, `dispute_resolved` (in-app + email).
 
 ## Notifications
 

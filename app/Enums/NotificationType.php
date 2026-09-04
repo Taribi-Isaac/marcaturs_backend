@@ -27,6 +27,10 @@ enum NotificationType: string
 
     case CommissionReceived = 'commission_received';
 
+    case DisputeOpened = 'dispute_opened';
+
+    case DisputeResolved = 'dispute_resolved';
+
     public function isBusinessPaymentPressureReminder(): bool
     {
         return match ($this) {
