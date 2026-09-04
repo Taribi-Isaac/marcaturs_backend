@@ -15,4 +15,6 @@ enum DealEventType: string
     case CommissionDue = 'commission_due';
 
     case PaymentRejected = 'payment_rejected';
+
+    case Completed = 'deal_completed';
 }

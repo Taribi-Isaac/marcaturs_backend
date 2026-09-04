@@ -152,7 +152,7 @@ class CommissionSettlementTest extends TestCase
         $this->assertNotNull($commission->paid_at);
         $this->assertNotNull($commission->received_at);
         $this->assertSame($amount, $commission->amount);
-        $this->assertSame(DealStatus::Sealed, $deal->fresh()->status);
+        $this->assertSame(DealStatus::Completed, $deal->fresh()->status);
         $this->assertSame(2, CommissionEvent::query()->where('commission_id', $commission->id)->count());
         $this->assertTrue(
             CommissionEvent::query()

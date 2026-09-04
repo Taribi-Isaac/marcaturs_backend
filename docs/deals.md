@@ -10,7 +10,15 @@ Ambassador ──────────────── ► Deal
                               └── Payment Evidence
 ```
 
-Conversation, Campaign discovery, and PlatformPayment remain independent. Payment evidence (MH-BE-016) does **not** confirm payment, seal the Deal, or create commission. Confirmation, disputes, Chat Create Deal, and Deal WebSockets remain later slices.
+Conversation, Campaign discovery, and PlatformPayment remain independent. Payment evidence (MH-BE-016) does **not** confirm payment, seal the Deal, or create commission. Disputes, Chat Create Deal, and Deal WebSockets remain later slices.
+
+## Status lifecycle
+
+```text
+payment_pending → sealed → completed
+```
+
+`completed` is the normal terminal status (MH-BE-023B). It is set automatically when Commission receipt is confirmed. Cancellation, refund, and dispute statuses are not implemented in this slice.
 
 ## Creation
 
@@ -102,7 +110,21 @@ Lifecycle: `due` → `paid` (Business declaration that off-platform payment was 
 
 Immutable after create: Deal, parties, campaign version, type, rate, amount, currency, `became_due_at`, `due_at`. Settlement may set `status`, `paid_at`, `received_at`, and optional reference/note.
 
-Late `due → paid` is allowed (`paid_at` may be after `due_at`). Deal status is unchanged (no Deal completion).
+Late `due → paid` is allowed (`paid_at` may be after `due_at`). Deal status remains `sealed` until the Ambassador confirms receipt.
+
+## Deal completion (MH-BE-023B)
+
+Deal status values: `payment_pending` → `sealed` → `completed`.
+
+There is **no** separate Complete Deal API. When the Ambassador successfully confirms Commission receipt (`POST /api/v1/commissions/{id}/confirm-received`), the same transaction also transitions the associated Deal:
+
+`sealed → completed`
+
+and writes exactly one Deal Event `deal_completed` (actor = Ambassador; metadata: `commission_id`, `received_at`). Idempotent retries of confirm-received do not duplicate Commission or Deal completion events and do not alter `received_at`.
+
+Only `sealed → completed` is allowed for completion. `payment_pending → completed` is not permitted. `completed` is terminal for the normal lifecycle in this slice (no revert to `sealed` or `payment_pending`). Cancellation, refund, and dispute remain deferred.
+
+Overdue Commissions may still be settled late; late settlement still completes the Deal. Overdue is never a Deal status.
 
 Overdue is a **derived condition**, not a persisted status. A Commission is overdue when `status = due AND now > due_at`. Once `paid` or `received`, `is_overdue` is always `false`. The scheduler (`commissions:process-overdue`, every 15 minutes) writes a one-time immutable `commission_overdue` event on `commission_events` when overdue is first detected. The event has a null actor (system), `due_at`, and `detected_at` metadata. It persists after payment so historical lateness is auditable.
 
@@ -115,7 +137,7 @@ Commission reminders (MH-BE-022E) are observational notifications only. The sche
 | `POST` | `/api/v1/commissions/{id}/mark-paid` | Deal BUSINESS; body optional `payment_reference`, `payment_note` |
 | `POST` | `/api/v1/commissions/{id}/confirm-received` | Deal AMBASSADOR; no financial fields |
 
-Ambassador cannot confirm a `due` Commission (`422`). Business cannot confirm received (`403`). Admin cannot settle (`403`). Idempotent retries of the same transition do not duplicate `commission_events` (`UNIQUE(commission_id, type)`). `received → paid` is `409`. Settlement writes `commission_paid` / `commission_received` on `commission_events`, not Deal events.
+Ambassador cannot confirm a `due` Commission (`422`). Business cannot confirm received (`403`). Admin cannot settle (`403`). Idempotent retries of the same transition do not duplicate `commission_events` (`UNIQUE(commission_id, type)`). `received → paid` is `409`. Settlement writes `commission_paid` / `commission_received` on `commission_events`. Successful `confirm-received` also writes `deal_completed` on `deal_events` in the same transaction (MH-BE-023B).
 
 
 `POST /api/v1/deals/{deal}/payment-evidence/{id}/reject` — Deal **BUSINESS** only. Body `{ "reason": "..." }` (required). Evidence becomes `rejected`. Deal stays `payment_pending`. Event `payment_rejected`. Ambassador may submit new evidence. Sealed Deal reject → 409.

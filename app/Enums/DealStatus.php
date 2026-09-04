@@ -8,9 +8,16 @@ enum DealStatus: string
 
     case Sealed = 'sealed';
 
+    case Completed = 'completed';
+
     public function isSealed(): bool
     {
         return $this === self::Sealed;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this === self::Completed;
     }
 
     public function allowsConfirmation(): bool

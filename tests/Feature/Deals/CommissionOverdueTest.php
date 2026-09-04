@@ -285,7 +285,7 @@ class CommissionOverdueTest extends TestCase
         $this->postJson('/api/v1/commissions/'.$commission->id.'/confirm-received')->assertOk();
 
         $this->assertSame(CommissionStatus::Received, $commission->fresh()->status);
-        $this->assertSame(DealStatus::Sealed, $commission->deal->fresh()->status);
+        $this->assertSame(DealStatus::Completed, $commission->deal->fresh()->status);
     }
 
     // ── API ─────────────────────────────────────────────────────────────

@@ -4,8 +4,12 @@ namespace App\Services\Deals;
 
 use App\Enums\CommissionEventType;
 use App\Enums\CommissionStatus;
+use App\Enums\DealEventType;
+use App\Enums\DealStatus;
 use App\Models\Commission;
 use App\Models\CommissionEvent;
+use App\Models\Deal;
+use App\Models\DealEvent;
 use App\Models\User;
 use App\Services\Notifications\CommissionNotificationDispatcher;
 use App\Support\Api\ApiErrorCode;
@@ -74,7 +78,7 @@ class CommissionSettlementService
                 $locked->payment_note = $this->optionalText($attributes['payment_note'] ?? null);
                 $locked->save();
 
-                $this->writeEvent($locked, $business, CommissionEventType::Paid, $previous, [
+                $this->writeCommissionEvent($locked, $business, CommissionEventType::Paid, $previous, [
                     'has_payment_reference' => $locked->payment_reference !== null,
                     'has_payment_note' => $locked->payment_note !== null,
                     'paid_at' => $locked->paid_at?->toIso8601String(),
@@ -172,9 +176,11 @@ class CommissionSettlementService
                 $locked->received_at = now();
                 $locked->save();
 
-                $this->writeEvent($locked, $ambassador, CommissionEventType::Received, $previous, [
+                $this->writeCommissionEvent($locked, $ambassador, CommissionEventType::Received, $previous, [
                     'received_at' => $locked->received_at?->toIso8601String(),
                 ]);
+
+                $this->completeDealForReceivedCommission($locked, $ambassador);
 
                 Log::info('Commission receipt confirmed', [
                     'commission_id' => $locked->id,
@@ -218,9 +224,67 @@ class CommissionSettlementService
     }
 
     /**
+     * Automatically complete the associated Deal: sealed → completed.
+     *
+     * Must run inside the same DB transaction as Commission → received.
+     */
+    private function completeDealForReceivedCommission(Commission $commission, User $actor): void
+    {
+        $deal = Deal::query()->whereKey($commission->deal_id)->lockForUpdate()->firstOrFail();
+
+        if ($deal->status->isCompleted()) {
+            return;
+        }
+
+        if (! $deal->status->isSealed()) {
+            throw new HttpResponseException(ApiResponse::error(
+                ApiErrorCode::CONFLICT,
+                'This Deal cannot be completed in its current state.',
+                409,
+            ));
+        }
+
+        $alreadyCompleted = DealEvent::query()
+            ->where('deal_id', $deal->id)
+            ->where('type', DealEventType::Completed)
+            ->exists();
+
+        if ($alreadyCompleted) {
+            $deal->status = DealStatus::Completed;
+            $deal->save();
+
+            return;
+        }
+
+        $previous = $deal->status;
+        $deal->status = DealStatus::Completed;
+        $deal->save();
+
+        $event = new DealEvent;
+        $event->deal_id = $deal->id;
+        $event->actor_user_id = $actor->id;
+        $event->type = DealEventType::Completed;
+        $event->previous_status = $previous;
+        $event->new_status = DealStatus::Completed;
+        $event->metadata = [
+            'commission_id' => $commission->id,
+            'received_at' => $commission->received_at?->toIso8601String(),
+        ];
+        $event->save();
+
+        Log::info('Deal completed', [
+            'deal_id' => $deal->id,
+            'commission_id' => $commission->id,
+            'actor_user_id' => $actor->id,
+            'previous_status' => $previous->value,
+            'new_status' => $deal->status->value,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $metadata
      */
-    private function writeEvent(
+    private function writeCommissionEvent(
         Commission $commission,
         User $actor,
         CommissionEventType $type,

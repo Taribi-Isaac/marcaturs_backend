@@ -437,7 +437,7 @@ A Deal is a versioned commercial record (Ambassador + Business + Campaign + Camp
 | `POST` | `/api/v1/commissions/{id}/mark-paid` | Sanctum | BUSINESS owner | `due → paid` (optional reference/note) |
 | `POST` | `/api/v1/commissions/{id}/confirm-received` | Sanctum | AMBASSADOR payee | `paid → received` |
 
-New Deals only for `active` or `expiring` campaigns with a published current version. Status starts at `payment_pending`. Confirmation seals to `sealed`, creates one Commission (`UNIQUE deal_id`), and writes `payment_confirmed`, `deal_sealed`, `commission_due`. Settlement recording is `due → paid → received` on the Commission (MH-BE-020). `is_overdue` (derived: `status = due AND now > due_at`) is exposed on Commission responses (MH-BE-021). Overdue detection writes a one-time `commission_overdue` audit event; no notifications or reminders. Payout, disputes, Deal completion, and Chat integration are not in this slice.
+New Deals only for `active` or `expiring` campaigns with a published current version. Status starts at `payment_pending`. Confirmation seals to `sealed`, creates one Commission (`UNIQUE deal_id`), and writes `payment_confirmed`, `deal_sealed`, `commission_due`. Settlement recording is `due → paid → received` on the Commission (MH-BE-020). Successful Ambassador `confirm-received` automatically completes the Deal (`sealed → completed`) and writes `deal_completed` in the same transaction (MH-BE-023B); there is no separate completion API. `is_overdue` (derived: `status = due AND now > due_at`) is exposed on Commission responses (MH-BE-021). Overdue detection writes a one-time `commission_overdue` audit event. Payout, disputes, cancellation/refund, and Chat integration are not in this slice.
 
 ## Notifications
 
