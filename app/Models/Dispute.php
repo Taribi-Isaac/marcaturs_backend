@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DisputeStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -19,6 +20,15 @@ class Dispute extends Model
             'resolved_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @param  Builder<Dispute>  $query
+     * @return Builder<Dispute>
+     */
+    public function scopeOpen(Builder $query): Builder
+    {
+        return $query->whereIn('status', DisputeStatus::openValues());
     }
 
     public function isParty(User $user): bool

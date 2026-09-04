@@ -58,6 +58,15 @@ Multiple Deals may share the same Ambassador, Business, Campaign, or Campaign Ve
 
 Show includes `deal_created` history. Responses do not include payment account identifiers, customer identity, or conversation IDs.
 
+List and show also expose derived open-dispute visibility (MH-BE-026B), computed from related Dispute rows — not persisted Deal columns:
+
+| Field | Meaning |
+| --- | --- |
+| `has_open_dispute` | `true` when at least one related Dispute is open per `DisputeStatus::isOpen()` |
+| `open_dispute_count` | Count of those open Disputes (multiple open cases per Deal are allowed) |
+
+Deal `status` remains `payment_pending` / `sealed` / `completed` only. An open Dispute does not freeze settlement or completion.
+
 ## Payment evidence (MH-BE-016)
 
 Payment evidence is the Ambassador’s claim that the customer paid the Business **directly**. It is **not** payment confirmation and **does not** create commission liability.

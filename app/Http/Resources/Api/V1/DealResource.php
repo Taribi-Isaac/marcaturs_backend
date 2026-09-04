@@ -46,6 +46,8 @@ class DealResource extends JsonResource
             'expected_transaction_amount' => $this->expected_transaction_amount,
             'confirmed_payment_amount' => $this->confirmed_payment_amount,
             'confirmed_at' => $this->confirmed_at?->toIso8601String(),
+            'has_open_dispute' => $this->openDisputeCount() > 0,
+            'open_dispute_count' => $this->openDisputeCount(),
             'commission' => $this->whenLoaded('commission', fn () => $this->commission === null ? null : [
                 'id' => $this->commission->id,
                 'status' => $this->commission->status->value,
@@ -76,5 +78,10 @@ class DealResource extends JsonResource
             'name' => $user->name,
             'role' => $user->role->value,
         ];
+    }
+
+    private function openDisputeCount(): int
+    {
+        return (int) ($this->open_dispute_count ?? 0);
     }
 }

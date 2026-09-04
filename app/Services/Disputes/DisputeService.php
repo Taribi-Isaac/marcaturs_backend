@@ -616,7 +616,7 @@ class DisputeService
 
     private function withAdminRelations(Dispute $dispute): Dispute
     {
-        return $dispute->loadMissing([
+        $loaded = $dispute->loadMissing([
             'category',
             'reporter',
             'accused',
@@ -632,5 +632,13 @@ class DisputeService
             'attachments.uploader',
             'events.actor',
         ]);
+
+        if ($loaded->deal !== null) {
+            $loaded->deal->loadCount([
+                'disputes as open_dispute_count' => fn ($disputes) => $disputes->open(),
+            ]);
+        }
+
+        return $loaded;
     }
 }

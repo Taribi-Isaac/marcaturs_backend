@@ -35,4 +35,19 @@ enum DisputeStatus: string
     {
         return ! $this->isTerminal() && $this !== self::Resolved;
     }
+
+    /**
+     * Status values for which {@see isOpen()} is true.
+     *
+     * Derived from the enum cases so query scopes stay aligned with isOpen().
+     *
+     * @return list<string>
+     */
+    public static function openValues(): array
+    {
+        return array_values(array_map(
+            static fn (self $status): string => $status->value,
+            array_filter(self::cases(), static fn (self $status): bool => $status->isOpen()),
+        ));
+    }
 }

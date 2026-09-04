@@ -75,7 +75,11 @@ class DealService
     {
         $this->assertParticipantRole($user);
 
-        $query = Deal::query()->with(['business', 'ambassador', 'campaign', 'campaignVersion']);
+        $query = Deal::query()
+            ->with(['business', 'ambassador', 'campaign', 'campaignVersion'])
+            ->withCount([
+                'disputes as open_dispute_count' => fn ($disputes) => $disputes->open(),
+            ]);
 
         if ($user->isAmbassador()) {
             $query->where('ambassador_user_id', $user->id);
@@ -154,7 +158,10 @@ class DealService
 
     private function withShowRelations(Deal $deal): Deal
     {
-        return $deal->load(['business', 'ambassador', 'campaign', 'campaignVersion', 'events.actor', 'commission']);
+        return $deal->load(['business', 'ambassador', 'campaign', 'campaignVersion', 'events.actor', 'commission'])
+            ->loadCount([
+                'disputes as open_dispute_count' => fn ($disputes) => $disputes->open(),
+            ]);
     }
 
     private function assertParticipantRole(User $user): void

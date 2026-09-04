@@ -1916,7 +1916,7 @@
     },
     {
       "name": "Deals",
-      "description": "Deal create/list/show, payment evidence, and Business confirm/reject (MH-BE-018). Confirm seals the Deal. Reject leaves payment_pending. No Commission table.",
+      "description": "Deal create/list/show, payment evidence, and Business confirm/reject. Confirm seals the Deal. Reject leaves payment_pending. List/show include derived has_open_dispute and open_dispute_count (MH-BE-026B). No DealStatus disputed.",
       "item": [
         {
           "name": "Create Deal (Ambassador)",

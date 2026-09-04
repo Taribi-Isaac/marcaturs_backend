@@ -6,6 +6,7 @@ A Dispute is an **operational investigation case**. It is not a Deal status and 
 
 * Deal statuses remain `payment_pending` → `sealed` → `completed` (no `disputed`).
 * “Disputed” for UI/filtering means the Deal has an applicable/open Dispute case.
+* Deal list/show expose derived fields `has_open_dispute` and `open_dispute_count` (MH-BE-026B), aligned with `DisputeStatus::isOpen()`.
 * No settlement freeze: open Disputes do not block mark-paid, confirm-received, completion, overdue detection, or reminders.
 * Post-completion Disputes are allowed; the Deal stays `completed`.
 * Resolution records decision/action notes only — no clawback, refund, completion reversal, or Commission rewrite.

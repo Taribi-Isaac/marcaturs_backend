@@ -234,6 +234,9 @@ class DealConfirmationService
 
     private function withShowRelations(Deal $deal): Deal
     {
-        return $deal->load(['business', 'ambassador', 'campaign', 'campaignVersion', 'events.actor', 'commission']);
+        return $deal->load(['business', 'ambassador', 'campaign', 'campaignVersion', 'events.actor', 'commission'])
+            ->loadCount([
+                'disputes as open_dispute_count' => fn ($disputes) => $disputes->open(),
+            ]);
     }
 }
