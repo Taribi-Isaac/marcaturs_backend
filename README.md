@@ -52,7 +52,13 @@ Create the MySQL database (name `marcaturshub` by default), then:
 php artisan migrate
 ```
 
-Seeders are intentionally empty. Provision a local administrator with `php artisan marcaturs:create-admin` (see Authentication below). Domain factories and seeders for marketplace data will be added with their features.
+Seeders: default `DatabaseSeeder` only loads dispute categories. For a full deterministic development/UAT dataset (Admin UI + local E2E), see [docs/development-seed.md](docs/development-seed.md) and run:
+
+```bash
+php artisan marcaturs:seed-demo
+```
+
+That command is blocked outside `local`/`testing` (staging needs `--force` and `ALLOW_DEMO_SEED=true`). Provision a one-off admin without the demo dataset via `php artisan marcaturs:create-admin` (see Authentication below).
 
 Optional Docker dependencies:
 
