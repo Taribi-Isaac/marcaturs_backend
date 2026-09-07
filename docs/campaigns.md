@@ -71,6 +71,21 @@ Applying an extension still requires a **published** current Campaign Version. T
 
 Payment is initialized server-side. The client cannot set amount or status. Confirmation is Paystack webhook and/or `POST .../extensions/verify`, both of which re-verify the transaction. Duplicate webhooks do not add time twice.
 
+## Featured / Premium visibility (MH-BE-032)
+
+**Extension ≠ Featured.** Extension buys listing time; Featured buys time-bound marketplace visibility for one Campaign (Business → MarcatursHub via Paystack).
+
+| Campaign status | Featured purchase | Marketplace Featured display |
+| --- | --- | --- |
+| `active` / `expiring` | Yes (published version + assignable category) | Yes while entitlement `expires_at` is future |
+| `expired`, `draft`, `submitted`, `approved`, `deactivated`, `suspended`, `closed` | No | No (undiscoverable campaigns never appear) |
+
+Stacking: a new successful purchase sets `expires_at = max(current_active_expires_at, now) + duration_days` (extends remaining Featured time). No hard inventory cap. No refund/credit for unused Featured time (MH-BE-028D). Featured never mutates listing dates, Campaign Versions, Deals, or Commissions.
+
+`campaigns.is_featured` is a synchronized current-state flag (cleared by `campaigns:process-lifecycle` when entitlements expire). Authoritative history lives in `campaign_featured_purchases`.
+
+Marketplace order: Featured first, then `listing_starts_at`, then `id`. Optional filter `featured=true`. Public cards expose `is_featured` only.
+
 ## Marketplace discovery (MH-BE-009 / ENG-018)
 
 Public ambassador marketplace. **No Sanctum required.** Hidden campaigns return `404` (same as unknown ids).
@@ -91,10 +106,11 @@ Discoverable only when:
 | `service_area` | Location/service-area contains |
 | `status` | `active` or `expiring` only |
 | `verified` | Business overall verification is `VERIFIED` |
+| `featured` | Optional boolean filter for currently Featured campaigns |
 | `price_min` / `price_max` | Published version `price_amount` |
 | `page` / `per_page` | Pagination (default 15, max 100) |
 
-Order is newest listing first (`listing_starts_at`, then `id`). Featured/Premium ranking is not implemented. Save/favourite and the official payment-information page (account numbers) are later tasks. Detail exposes `payment_destination_name` and `payment_provider` only. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
+Order is Featured campaigns first (`is_featured`), then newest listing (`listing_starts_at`, then `id`). Optional `featured=true|false` filter. Save/favourite and the official payment-information page (account numbers) are later tasks. Detail exposes `payment_destination_name` and `payment_provider` only. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
 
 ## Campaign marketing resources (MH-BE-010 / ENG-019)
 
@@ -127,4 +143,6 @@ After a paid extension returns a campaign to `active`, existing files become amb
 - Resume from `suspended`
 - Promotional/discount engine for packages (admin can change package prices)
 - Participant verification as a submit gate
-- Featured/Premium ranking (later monetization)
+- Dedicated Featured carousel, hard inventory slots, or ML ranking
+- Featured expiry reminder notifications
+- Refund/credit for unused Featured time (out of MVP per MH-BE-028D)

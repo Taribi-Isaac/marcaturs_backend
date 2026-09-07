@@ -34,6 +34,7 @@ class CampaignDiscoveryService
         );
 
         return $query
+            ->orderByDesc('is_featured')
             ->orderByDesc('listing_starts_at')
             ->orderByDesc('id')
             ->paginate($perPage);
@@ -113,6 +114,10 @@ class CampaignDiscoveryService
 
         if ($request->filled('q')) {
             $this->constrainKeyword($query, $request->string('q')->toString());
+        }
+
+        if ($request->has('featured') && $request->input('featured') !== null) {
+            $query->where('is_featured', (bool) $request->boolean('featured'));
         }
     }
 

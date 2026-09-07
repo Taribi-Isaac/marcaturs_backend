@@ -45,6 +45,7 @@ class MarketplaceCampaignCardResource extends JsonResource
             'commission_trigger' => $version?->commission_trigger?->value,
             'service_area' => $version?->service_area,
             'version_number' => $version?->version_number,
+            'is_featured' => (bool) $this->is_featured,
             'listing_starts_at' => $this->listing_starts_at?->toIso8601String(),
             'listing_expires_at' => $this->listing_expires_at?->toIso8601String(),
         ];

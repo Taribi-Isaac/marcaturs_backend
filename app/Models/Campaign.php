@@ -108,6 +108,14 @@ class Campaign extends Model
     }
 
     /**
+     * @return HasMany<CampaignFeaturedPurchase, $this>
+     */
+    public function featuredPurchases(): HasMany
+    {
+        return $this->hasMany(CampaignFeaturedPurchase::class);
+    }
+
+    /**
      * @return HasMany<PlatformPayment, $this>
      */
     public function platformPayments(): HasMany

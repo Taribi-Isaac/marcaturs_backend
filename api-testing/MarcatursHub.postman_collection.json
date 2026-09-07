@@ -84,6 +84,10 @@
     {
       "key": "paystackSignature",
       "value": ""
+    },
+    {
+      "key": "featuredPackageId",
+      "value": "1"
     }
   ],
   "item": [
@@ -486,8 +490,8 @@
       ]
     },
     {
-      "name": "Verification \u2014 Participant",
-      "description": "BUSINESS or AMBASSADOR. Complete a profile first. Placeholders only \u2014 do not attach real identity documents.",
+      "name": "Verification — Participant",
+      "description": "BUSINESS or AMBASSADOR. Complete a profile first. Placeholders only — do not attach real identity documents.",
       "item": [
         {
           "name": "List My Requirements",
@@ -576,7 +580,7 @@
       ]
     },
     {
-      "name": "Verification \u2014 Administration",
+      "name": "Verification — Administration",
       "description": "ADMIN only. Use a token from marcaturs:create-admin. Do not store real evidence in examples.",
       "item": [
         {
@@ -824,7 +828,7 @@
       ]
     },
     {
-      "name": "Categories \u2014 Administration",
+      "name": "Categories — Administration",
       "description": "ADMIN only. Create and update category definitions, including listing_status and is_active.",
       "item": [
         {
@@ -946,7 +950,7 @@
       ]
     },
     {
-      "name": "Campaigns \u2014 Business",
+      "name": "Campaigns — Business",
       "description": "BUSINESS campaign shell and versioned commercial terms. Complete a profile first. Not discovery, deals, or payments.",
       "item": [
         {
@@ -1309,7 +1313,7 @@
       ]
     },
     {
-      "name": "Campaign Lifecycle \u2014 Administration",
+      "name": "Campaign Lifecycle — Administration",
       "description": "ADMIN moderation. Approve does not activate. Publish version first.",
       "item": [
         {
@@ -1513,8 +1517,8 @@
       ]
     },
     {
-      "name": "Campaign Extensions \u2014 Business",
-      "description": "BUSINESS paid listing extension. Paystack platform purchase only. Publish \u2260 activate \u2260 extend.",
+      "name": "Campaign Extensions — Business",
+      "description": "BUSINESS paid listing extension. Paystack platform purchase only. Publish ≠ activate ≠ extend.",
       "item": [
         {
           "name": "List Extension Packages",
@@ -1603,7 +1607,97 @@
       ]
     },
     {
-      "name": "Campaign Extension Packages \u2014 Administration",
+      "name": "Campaign Featured — Business",
+      "description": "BUSINESS paid Premium Visibility. Independent of Extension. No refund for unused Featured time.",
+      "item": [
+        {
+          "name": "List Featured Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaign-featured/packages"
+          }
+        },
+        {
+          "name": "Featured Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/featured"
+          }
+        },
+        {
+          "name": "Initialize Featured Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"package_id\": {{featuredPackageId}}\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/featured/initialize"
+          }
+        },
+        {
+          "name": "Verify Featured Payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reference\": \"{{paystackReference}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/featured/verify"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Extension Packages — Administration",
       "description": "ADMIN configurable duration and price. Example packages only; not product constants.",
       "item": [
         {
@@ -1693,6 +1787,96 @@
       ]
     },
     {
+      "name": "Campaign Featured Packages — Administration",
+      "description": "ADMIN Featured packages. Separate from Extension packages. No paid-bypass activate.",
+      "item": [
+        {
+          "name": "List Featured Packages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaign-featured-packages"
+          }
+        },
+        {
+          "name": "Create Featured Package",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"7-day Featured\",\n  \"duration_days\": 7,\n  \"amount_minor\": 250000,\n  \"currency\": \"NGN\",\n  \"is_active\": true,\n  \"sort_order\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaign-featured-packages"
+          }
+        },
+        {
+          "name": "Update Featured Package",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/campaign-featured-packages/{{featuredPackageId}}"
+          }
+        },
+        {
+          "name": "Admin Featured Purchase History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/featured"
+          }
+        }
+      ]
+    },
+    {
       "name": "Paystack Webhook",
       "description": "Provider callback. Signature required. Do not send secrets in the body.",
       "item": [
@@ -1725,7 +1909,7 @@
     },
     {
       "name": "Conversations",
-      "description": "One Business\u2013Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
+      "description": "One Business–Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
       "item": [
         {
           "name": "List My Conversations",
@@ -2214,7 +2398,7 @@
     },
     {
       "name": "Commissions",
-      "description": "Business\u2192Ambassador liability and settlement recording (MH-BE-019/020). due \u2192 paid \u2192 received. No payout.",
+      "description": "Business→Ambassador liability and settlement recording (MH-BE-019/020). due → paid → received. No payout.",
       "item": [
         {
           "name": "List My Commissions",

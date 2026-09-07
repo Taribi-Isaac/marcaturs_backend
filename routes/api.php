@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignExtensionController;
+use App\Http\Controllers\Api\V1\Admin\AdminCampaignFeaturedController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignMarketingResourceController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CampaignExtensionController;
+use App\Http\Controllers\Api\V1\CampaignFeaturedController;
 use App\Http\Controllers\Api\V1\CampaignMarketingResourceController;
 use App\Http\Controllers\Api\V1\CampaignVersionController;
 use App\Http\Controllers\Api\V1\CategoryController;
@@ -182,6 +184,9 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/{campaign}/extensions', [CampaignExtensionController::class, 'index'])->name('extensions.index');
             Route::post('/{campaign}/extensions/initialize', [CampaignExtensionController::class, 'initialize'])->name('extensions.initialize');
             Route::post('/{campaign}/extensions/verify', [CampaignExtensionController::class, 'verify'])->name('extensions.verify');
+            Route::get('/{campaign}/featured', [CampaignFeaturedController::class, 'show'])->name('featured.show');
+            Route::post('/{campaign}/featured/initialize', [CampaignFeaturedController::class, 'initialize'])->name('featured.initialize');
+            Route::post('/{campaign}/featured/verify', [CampaignFeaturedController::class, 'verify'])->name('featured.verify');
             Route::get('/{campaign}/versions', [CampaignVersionController::class, 'index'])->name('versions.index');
             Route::post('/{campaign}/versions', [CampaignVersionController::class, 'store'])->name('versions.store');
             Route::get('/{campaign}/versions/{version}', [CampaignVersionController::class, 'show'])->name('versions.show');
@@ -199,6 +204,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/{campaign}/resources/{marketingResource}/download', [CampaignMarketingResourceController::class, 'download'])->name('resources.download');
         });
 
+        Route::middleware('role:BUSINESS')->prefix('campaign-featured')->name('campaign-featured.')->group(function (): void {
+            Route::get('/packages', [CampaignFeaturedController::class, 'packages'])->name('packages');
+        });
+
         Route::middleware('role:ADMIN')->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
             Route::get('/', [AdminCampaignController::class, 'index'])->name('index');
             Route::get('/{campaign}', [AdminCampaignController::class, 'show'])->name('show');
@@ -209,6 +218,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/{campaign}/suspend', [AdminCampaignController::class, 'suspend'])->name('suspend');
             Route::post('/{campaign}/close', [AdminCampaignController::class, 'close'])->name('close');
             Route::get('/{campaign}/extensions', [AdminCampaignExtensionController::class, 'indexExtensions'])->name('extensions.index');
+            Route::get('/{campaign}/featured', [AdminCampaignFeaturedController::class, 'indexPurchases'])->name('featured.index');
             Route::get('/{campaign}/resources', [AdminCampaignMarketingResourceController::class, 'index'])->name('resources.index');
             Route::get('/{campaign}/resources/{marketingResource}/download', [AdminCampaignMarketingResourceController::class, 'download'])->name('resources.download');
         });
@@ -217,6 +227,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/', [AdminCampaignExtensionController::class, 'indexPackages'])->name('index');
             Route::post('/', [AdminCampaignExtensionController::class, 'storePackage'])->name('store');
             Route::patch('/{package}', [AdminCampaignExtensionController::class, 'updatePackage'])->name('update');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin/campaign-featured-packages')->name('admin.campaign-featured-packages.')->group(function (): void {
+            Route::get('/', [AdminCampaignFeaturedController::class, 'indexPackages'])->name('index');
+            Route::post('/', [AdminCampaignFeaturedController::class, 'storePackage'])->name('store');
+            Route::patch('/{package}', [AdminCampaignFeaturedController::class, 'updatePackage'])->name('update');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/conversations')->name('admin.conversations.')->group(function (): void {

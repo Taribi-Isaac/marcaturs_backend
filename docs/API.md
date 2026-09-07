@@ -405,6 +405,24 @@ Packages and prices are administrator-configurable (PRD 8.24 / 20.1). Amounts ar
 
 Eligible campaign states: `active`, `expiring`, `expired`. See [docs/campaigns.md](campaigns.md) and [docs/payments.md](payments.md).
 
+## Featured / Premium visibility
+
+Admin-configurable packages. Amounts are integer minor units (kobo) in `NGN`. Featured is independent of Campaign Extension.
+
+| Method | Path | Auth | Role | Purpose |
+| --- | --- | --- | --- | --- |
+| `GET` | `/api/v1/campaign-featured/packages` | Sanctum | BUSINESS | Active Featured packages |
+| `GET` | `/api/v1/campaigns/{id}/featured` | Sanctum | BUSINESS owner | Current status + purchase history |
+| `POST` | `/api/v1/campaigns/{id}/featured/initialize` | Sanctum | BUSINESS owner | Create pending Paystack payment (`package_id`) |
+| `POST` | `/api/v1/campaigns/{id}/featured/verify` | Sanctum | BUSINESS owner | Server-side verify + activate (`reference`) |
+| `GET` | `/api/v1/admin/campaign-featured-packages` | Sanctum | ADMIN | All packages |
+| `POST` | `/api/v1/admin/campaign-featured-packages` | Sanctum | ADMIN | Create package |
+| `PATCH` | `/api/v1/admin/campaign-featured-packages/{id}` | Sanctum | ADMIN | Update package (including deactivate) |
+| `GET` | `/api/v1/admin/campaigns/{id}/featured` | Sanctum | ADMIN | Featured purchase history |
+| `POST` | `/api/v1/webhooks/paystack` | Paystack signature | — | Confirm Featured or Extension payment by purpose |
+
+Eligible campaign states: `active`, `expiring` only (plus published version + assignable category). Successful purchases stack by extending `expires_at`. No refund API. See [docs/campaigns.md](campaigns.md).
+
 ## Campaign marketplace discovery
 
 Public listing for ambassadors and guests (PRD §21). Uses existing lifecycle states; no extra visibility column. Owner `/api/v1/campaigns` remains private.
@@ -414,7 +432,7 @@ Public listing for ambassadors and guests (PRD §21). Uses existing lifecycle st
 | `GET` | `/api/v1/marketplace/campaigns` | Public | Paginated discoverable campaigns |
 | `GET` | `/api/v1/marketplace/campaigns/{id}` | Public | Public detail for a discoverable campaign; otherwise `404` |
 
-Query parameters: `q`, `category_id`, `commission_type`, `service_area`, `status` (`active`\|`expiring`), `verified`, `price_min`, `price_max`, `page`, `per_page` (default 15, max 100). Sort is newest listing first. See [docs/campaigns.md](campaigns.md).
+Query parameters: `q`, `category_id`, `commission_type`, `service_area`, `status` (`active`\|`expiring`), `verified`, `featured`, `price_min`, `price_max`, `page`, `per_page` (default 15, max 100). Sort is Featured first, then newest listing. Cards expose `is_featured`. See [docs/campaigns.md](campaigns.md).
 
 ## Campaign marketing resources
 

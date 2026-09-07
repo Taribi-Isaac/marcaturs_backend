@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\Payments\PlatformPaymentGateway;
+use App\Enums\PlatformPaymentPurpose;
 use App\Http\Controllers\Controller;
+use App\Models\PlatformPayment;
 use App\Services\Campaigns\CampaignExtensionService;
+use App\Services\Campaigns\CampaignFeaturedService;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -17,6 +20,7 @@ class PaystackWebhookController extends Controller
     public function __construct(
         private readonly PlatformPaymentGateway $gateway,
         private readonly CampaignExtensionService $extensions,
+        private readonly CampaignFeaturedService $featured,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -39,7 +43,7 @@ class PaystackWebhookController extends Controller
             : null;
 
         try {
-            $this->extensions->handleWebhookEvent($event, $reference);
+            $this->dispatchWebhook($event, $reference);
         } catch (HttpResponseException $exception) {
             $status = $exception->getResponse()->getStatusCode();
 
@@ -55,5 +59,23 @@ class PaystackWebhookController extends Controller
         }
 
         return ApiResponse::success(['received' => true]);
+    }
+
+    private function dispatchWebhook(string $event, ?string $reference): void
+    {
+        if ($reference === null || $reference === '') {
+            return;
+        }
+
+        $payment = PlatformPayment::query()->where('reference', $reference)->first();
+
+        if ($payment === null) {
+            return;
+        }
+
+        match ($payment->purpose) {
+            PlatformPaymentPurpose::CampaignFeatured => $this->featured->handleWebhookEvent($event, $reference),
+            PlatformPaymentPurpose::CampaignExtension => $this->extensions->handleWebhookEvent($event, $reference),
+        };
     }
 }

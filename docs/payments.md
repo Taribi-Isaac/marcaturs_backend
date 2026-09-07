@@ -1,11 +1,11 @@
 # Platform payments
 
-MarcatursHub uses Paystack only for **platform products**. The first product is campaign listing extension.
+MarcatursHub uses Paystack only for **platform products**: campaign listing extension and Featured / Premium visibility.
 
 ```text
 Customer → Business          (not Paystack, not this module)
 Business → Ambassador        (not Paystack, not this module)
-Business → MarcatursHub      (Paystack: campaign extension)
+Business → MarcatursHub      (Paystack: campaign extension, Featured)
 ```
 
 There are no customer wallets, ambassador wallets, or escrow tables.
@@ -19,9 +19,10 @@ Never trust a client `payment=successful` flag.
 3. Paystack `charge.success` webhook is signature-checked (`X-Paystack-Signature`, HMAC SHA512 of the raw body).
 4. The backend verifies the transaction with Paystack.
 5. Amount and currency must match the initialized payment.
-6. The campaign extension is applied inside a database transaction keyed by `platform_payments.reference` / unique `campaign_extensions.platform_payment_id`.
+6. The product effect is applied inside a database transaction keyed by `platform_payments.reference` and a unique purchase/extension row on `platform_payment_id`.
+7. Webhook routing uses `platform_payments.purpose` (`campaign_extension` or `campaign_featured`).
 
-`POST /api/v1/campaigns/{id}/extensions/verify` is the same confirmation path for the return URL. Repeating it is idempotent.
+`POST /api/v1/campaigns/{id}/extensions/verify` and `POST /api/v1/campaigns/{id}/featured/verify` share the same confirmation trust model. Repeating them is idempotent.
 
 ## Configuration
 

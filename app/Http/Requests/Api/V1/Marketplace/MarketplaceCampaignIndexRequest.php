@@ -21,6 +21,7 @@ class MarketplaceCampaignIndexRequest extends ApiFormRequest
             'service_area' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', Rule::in([CampaignStatus::Active->value, CampaignStatus::Expiring->value])],
             'verified' => ['sometimes', 'boolean'],
+            'featured' => ['sometimes', 'boolean'],
             'price_min' => ['sometimes', 'numeric', 'min:0'],
             'price_max' => ['sometimes', 'numeric', 'min:0'],
             'page' => ['sometimes', 'integer', 'min:1'],
@@ -33,6 +34,12 @@ class MarketplaceCampaignIndexRequest extends ApiFormRequest
         if ($this->has('verified')) {
             $this->merge([
                 'verified' => filter_var($this->input('verified'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
+            ]);
+        }
+
+        if ($this->has('featured')) {
+            $this->merge([
+                'featured' => filter_var($this->input('featured'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
             ]);
         }
     }

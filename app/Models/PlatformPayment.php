@@ -50,10 +50,26 @@ class PlatformPayment extends Model
     }
 
     /**
+     * @return BelongsTo<CampaignFeaturedPackage, $this>
+     */
+    public function featuredPackage(): BelongsTo
+    {
+        return $this->belongsTo(CampaignFeaturedPackage::class, 'campaign_featured_package_id');
+    }
+
+    /**
      * @return HasOne<CampaignExtension, $this>
      */
     public function campaignExtension(): HasOne
     {
         return $this->hasOne(CampaignExtension::class);
+    }
+
+    /**
+     * @return HasOne<CampaignFeaturedPurchase, $this>
+     */
+    public function campaignFeaturedPurchase(): HasOne
+    {
+        return $this->hasOne(CampaignFeaturedPurchase::class);
     }
 }

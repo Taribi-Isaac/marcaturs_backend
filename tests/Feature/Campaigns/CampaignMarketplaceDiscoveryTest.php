@@ -60,7 +60,7 @@ class CampaignMarketplaceDiscoveryTest extends TestCase
             ->assertJsonMissingPath('data.0.review_reason')
             ->assertJsonMissingPath('data.0.payment_account_identifier')
             ->assertJsonMissingPath('data.0.user')
-            ->assertJsonMissingPath('data.0.is_featured');
+            ->assertJsonPath('data.0.is_featured', false);
 
         $this->getJson('/api/v1/marketplace/campaigns/'.$active->id)
             ->assertOk()
