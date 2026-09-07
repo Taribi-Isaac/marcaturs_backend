@@ -54,9 +54,25 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             ->middleware('throttle:login')
             ->name('login');
 
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
+            ->middleware('throttle:password-reset')
+            ->name('forgot-password');
+
+        Route::post('/reset-password', [AuthController::class, 'resetPassword'])
+            ->middleware('throttle:password-reset')
+            ->name('reset-password');
+
+        Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+            ->middleware(['signed', 'throttle:email-verification'])
+            ->name('email.verify');
+
         Route::middleware(['auth:sanctum', 'account.access'])->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('/me', [AuthController::class, 'me'])->name('me');
+
+            Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
+                ->middleware('throttle:email-verification')
+                ->name('email.verification-notification');
         });
     });
 

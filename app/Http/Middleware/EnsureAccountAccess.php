@@ -19,6 +19,7 @@ class EnsureAccountAccess
     private const RESTRICTED_ALLOWED_ROUTES = [
         'api.v1.auth.me',
         'api.v1.auth.logout',
+        'api.v1.auth.email.verification-notification',
     ];
 
     /**

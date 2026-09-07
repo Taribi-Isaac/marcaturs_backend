@@ -32,6 +32,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="SANCTUM_STATEFUL_DOMAINS" value="none.invalid"/>
+        <env name="FRONTEND_URL" value="http://localhost:3000"/>
         <env name="FILESYSTEM_DISK" value="local"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

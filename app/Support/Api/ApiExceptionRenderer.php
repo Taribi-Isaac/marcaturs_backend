@@ -7,6 +7,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -31,6 +32,11 @@ final class ApiExceptionRenderer
             $exception instanceof AuthorizationException => ApiResponse::error(
                 ApiErrorCode::FORBIDDEN,
                 $exception->getMessage() !== '' ? $exception->getMessage() : 'You are not authorized to perform this action.',
+                403,
+            ),
+            $exception instanceof InvalidSignatureException => ApiResponse::error(
+                ApiErrorCode::FORBIDDEN,
+                'This email verification link is invalid or has expired.',
                 403,
             ),
             $exception instanceof ModelNotFoundException,

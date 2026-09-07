@@ -102,6 +102,7 @@ Named limiters (configurable via environment variables):
 - `login`
 - `registration`
 - `password-reset`
+- `email-verification`
 - `uploads`
 
 Apply the named limiter when the corresponding route is implemented.
@@ -114,6 +115,10 @@ TAD direction: Laravel Sanctum with first-party session cookies for the web app.
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/auth/register` | Public | `registration` |
 | `POST` | `/api/v1/auth/login` | Public | `login` |
+| `POST` | `/api/v1/auth/forgot-password` | Public | `password-reset` |
+| `POST` | `/api/v1/auth/reset-password` | Public | `password-reset` |
+| `GET` | `/api/v1/auth/email/verify/{id}/{hash}` | Signed URL | `email-verification` |
+| `POST` | `/api/v1/auth/email/verification-notification` | Sanctum | `email-verification` (+ `api`) |
 | `POST` | `/api/v1/auth/logout` | Sanctum | `api` |
 | `GET` | `/api/v1/auth/me` | Sanctum | `api` |
 
@@ -133,7 +138,7 @@ Public registration accepts only `BUSINESS` or `AMBASSADOR`. Sending `role=ADMIN
 }
 ```
 
-Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`.
+Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`. Registration issues a Sanctum token immediately and sends an email-verification notification. Email verification is **not** a mandatory product-access gate in MVP: unverified users may authenticate and use APIs subject to role and account-status rules. `email_verified_at` is exposed on user payloads so clients can prompt verification.
 
 ### Login
 
@@ -144,15 +149,48 @@ Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are nev
 }
 ```
 
-Unknown email and wrong password both return `401` with `error.code=unauthenticated` and the same message (`Invalid credentials.`). Suspended or banned accounts return `403`. Restricted accounts may log in.
+Unknown email and wrong password both return `401` with `error.code=unauthenticated` and the same message (`Invalid credentials.`). Suspended or banned accounts return `403`. Restricted accounts may log in. Email verification is not required to log in.
+
+### Password reset
+
+Uses Laravel’s password broker (`password_reset_tokens`, 60-minute expiry, single-use). Reset links are emailed to `FRONTEND_URL/reset-password?token=…&email=…`. Tokens are never returned in API responses.
+
+`POST /api/v1/auth/forgot-password`
+
+```json
+{ "email": "ada@example.com" }
+```
+
+Always returns `200` with the same message whether or not the email is registered (anti-enumeration). Rate-limited by `password-reset`.
+
+`POST /api/v1/auth/reset-password`
+
+```json
+{
+  "email": "ada@example.com",
+  "token": "<from-email>",
+  "password": "new-password-123",
+  "password_confirmation": "new-password-123"
+}
+```
+
+On success: password is hashed, the reset token is invalidated, all Sanctum tokens for the user are revoked, and the user must log in again. Invalid/expired/reused tokens return `422` `business_validation` with a generic invalid-token message. Account status is unchanged (resetting a suspended account’s password does not restore login).
+
+### Email verification
+
+Uses Laravel signed temporary URLs (`auth.verification.expire`, default 60 minutes). The verification email links to `GET /api/v1/auth/email/verify/{id}/{hash}?expires=…&signature=…`.
+
+Valid signature + matching email hash marks `email_verified_at`. Invalid/expired signatures return `403`. Already-verified links succeed idempotently. Hash is bound to the current email (email change invalidates old links).
+
+`POST /api/v1/auth/email/verification-notification` (authenticated) resends the verification email for the current user. Already-verified users receive a success payload with `already_verified: true` and no new mail. Restricted accounts may resend; suspended/banned accounts cannot (existing `account.access` policy). Rate-limited by `email-verification`.
 
 ### Current user
 
-`GET /api/v1/auth/me` returns identity fields: `id`, `name`, `email`, `role`, `status`, `last_login_at`, `created_at`. It does not return password, hash, token, or `remember_token`.
+`GET /api/v1/auth/me` returns identity fields: `id`, `name`, `email`, `role`, `status`, `email_verified_at`, `last_login_at`, `created_at`. It does not return password, hash, token, or `remember_token`.
 
 ### Logout
 
-Revokes the current Sanctum token (if a bearer token was used) and invalidates the web session when present. Unauthenticated logout returns `401`. A second logout with the same token also returns `401`.
+Revokes all Sanctum personal access tokens for the user and invalidates the web session when present. Unauthenticated logout returns `401`. A second logout with the same token also returns `401`.
 
 ### Roles
 

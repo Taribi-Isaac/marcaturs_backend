@@ -28,6 +28,8 @@ class AuthenticationService
         $user->status = AccountStatus::Active;
         $user->save();
 
+        $user->sendEmailVerificationNotification();
+
         return $this->establishSession($user);
     }
 
