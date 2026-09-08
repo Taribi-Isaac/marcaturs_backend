@@ -1483,6 +1483,63 @@
       ]
     },
     {
+      "name": "Admin Deals",
+      "description": "MH-BE-041. Read-only investigation desk. Sanctum + account.access + role:ADMIN. No mutations.",
+      "item": [
+        {
+          "name": "List Deals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/deals?status=&q=&open_dispute=&commission_overdue=&commission_status=&per_page=15"
+          }
+        },
+        {
+          "name": "Show Deal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/deals/{{dealId}}"
+          }
+        },
+        {
+          "name": "Download Payment Evidence",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/octet-stream"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/deals/{{dealId}}/payment-evidence/{{paymentEvidenceId}}/download"
+          }
+        }
+      ]
+    },
+    {
       "name": "Campaign Lifecycle — Administration",
       "description": "ADMIN moderation. Approve does not activate. Publish version first.",
       "item": [

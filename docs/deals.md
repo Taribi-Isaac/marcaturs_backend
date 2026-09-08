@@ -116,7 +116,7 @@ Allowed files: pdf, jpeg, jpg, png, webp; default max 5120 KB (`DEAL_PAYMENT_EVI
 | `GET` | `/api/v1/deals/{deal}/payment-evidence/{id}` | Same party rule; others `404` |
 | `GET` | `/api/v1/deals/{deal}/payment-evidence/{id}/download` | Same party rule; `404` if no file |
 
-Deal status stays `payment_pending` after evidence. A `payment_evidence_submitted` Deal Event is written in the same transaction. Multiple submissions append; there is no PATCH. Evidence status `rejected` is written by Business rejection (MH-BE-018). No Admin evidence API.
+Deal status stays `payment_pending` after evidence. A `payment_evidence_submitted` Deal Event is written in the same transaction. Multiple submissions append; there is no PATCH. Evidence status `rejected` is written by Business rejection (MH-BE-018). Admins inspect evidence metadata on `GET /api/v1/admin/deals/{deal}` and download via `GET /api/v1/admin/deals/{deal}/payment-evidence/{evidence}/download` (MH-BE-041); there is no Admin evidence mutation API.
 
 ## Payment confirmation (MH-BE-018)
 

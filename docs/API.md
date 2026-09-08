@@ -263,6 +263,22 @@ Successful mutations write a `user_status_events` audit row (actor, target, acti
 
 Marketplace discovery (`scopeDiscoverable`) excludes campaigns whose owning Business is not `active`. Sanction does not cancel Deals, reverse commissions, or mutate campaign/deal rows.
 
+## Admin Deals
+
+Admin Deals (MH-BE-041) is a **read-only investigation desk**. It does not confirm payment, cancel Deals, settle commissions, reject evidence, or edit snapshots.
+
+Auth: Sanctum + `account.access` + `role:ADMIN`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/deals` | Paginated list (`?status=`, `?q=`, `?open_dispute=1`, `?commission_overdue=1`, `?commission_status=due\|paid\|received`, `page`, `per_page`) |
+| `GET` | `/api/v1/admin/deals/{deal}` | Detail: parties, campaign + bound version (MH-BE-036 commercial redaction), full Deal snapshot, evidence metadata, commission, dispute summaries, `deal_events` timeline |
+| `GET` | `/api/v1/admin/deals/{deal}/payment-evidence/{evidence}/download` | Authenticated private-file stream; evidence must belong to Deal |
+
+List defaults: `per_page` 15 (max 100); order `id DESC`. Search `q` matches Deal id, Business/Ambassador name+email, Campaign title, Deal `product_name`, and Payment Evidence `reference_number`. `open_dispute=true` uses `DisputeStatus::openValues()`. `commission_overdue=true` means Commission `due` with `due_at < now`. Deals without a Commission never match `commission_status`.
+
+Detail keeps the **Deal snapshot** as historical commercial truth; Campaign Version is contextual only. Sensitive version fields (`payment_account_identifier`, `payment_instructions`, `payment_contact`), storage paths/keys, passwords, tokens, and chat bodies are never returned. Evidence JSON is metadata-only.
+
 ### Admin provisioning
 
 There is no public register-admin endpoint. Create an administrator with:

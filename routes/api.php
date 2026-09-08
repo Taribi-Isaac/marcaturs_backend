@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminCampaignFeaturedController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignMarketingResourceController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
+use App\Http\Controllers\Api\V1\Admin\AdminDealController;
 use App\Http\Controllers\Api\V1\Admin\AdminDisputeController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
@@ -220,6 +221,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/{user}/suspend', [AdminUserController::class, 'suspend'])->whereNumber('user')->name('suspend');
             Route::post('/{user}/restore', [AdminUserController::class, 'restore'])->whereNumber('user')->name('restore');
             Route::post('/{user}/ban', [AdminUserController::class, 'ban'])->whereNumber('user')->name('ban');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin/deals')->name('admin.deals.')->group(function (): void {
+            Route::get('/', [AdminDealController::class, 'index'])->name('index');
+            Route::get('/{deal}', [AdminDealController::class, 'show'])->whereNumber('deal')->name('show');
+            Route::get('/{deal}/payment-evidence/{paymentEvidence}/download', [AdminDealController::class, 'downloadEvidence'])
+                ->whereNumber(['deal', 'paymentEvidence'])
+                ->name('payment-evidence.download');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
