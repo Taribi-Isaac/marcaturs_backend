@@ -236,7 +236,32 @@ Stored on `users.status`:
 | `suspended` | No (`403`) | Blocked except `/logout` |
 | `banned` | No (`403`) | Blocked except `/logout` |
 
-Enforced by `account.access` middleware. There is no public API to change status in this task.
+Enforced by `account.access` middleware. Participant status is changed only through Admin Users discrete action endpoints (MH-BE-039); there is no free-form `PATCH` status API.
+
+## Admin Users
+
+Admin Users (MH-BE-039) manages **BUSINESS** and **AMBASSADOR** accounts only. **ADMIN** staff accounts are never listed, shown, or mutated here (Administration/RBAC is deferred).
+
+Auth: Sanctum + `account.access` + `role:ADMIN`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/users` | Paginated list (`?role=BUSINESS\|AMBASSADOR`, `?status=`, `?q=`, `page`, `per_page`) |
+| `GET` | `/api/v1/admin/users/{id}` | Detail: identity, full profile (MH-BE-003 redaction), verification summary, relationship counts |
+| `POST` | `/api/v1/admin/users/{id}/restrict` | `active → restricted` (`reason` required) |
+| `POST` | `/api/v1/admin/users/{id}/suspend` | `active\|restricted → suspended` (`reason` required); revokes target Sanctum tokens |
+| `POST` | `/api/v1/admin/users/{id}/restore` | `restricted\|suspended → active`; `banned → restricted` (`reason` required) |
+| `POST` | `/api/v1/admin/users/{id}/ban` | `active\|restricted\|suspended → banned` (`reason` required); revokes target Sanctum tokens |
+
+List defaults: both participant roles when `role` is omitted; `per_page` default 15 (max 100); order `id DESC`. Search `q` matches `users.name`, `users.email`, business `legal_name`/`trading_name`, ambassador `display_name`.
+
+List/detail return concise operational fields plus counts (`campaigns`, `deals`, `open_disputes`, `commissions_due`, `commissions_overdue`). They never expose passwords, tokens, payment identifiers, private evidence contents, or chat bodies. ADMIN targets and missing participants return `404`. Invalid transitions return `422` `business_validation`. Missing `reason` returns `400` `validation_error`.
+
+**Restrict** does not revoke Sanctum tokens (restricted-account MH-BE-002 semantics remain). **Suspend** and **ban** revoke all of the target user’s personal access tokens; the Admin actor’s tokens are untouched.
+
+Successful mutations write a `user_status_events` audit row (actor, target, action, previous/new status, reason, timestamps) in the same DB transaction, then send an email-only `account_status_changed` notification after commit.
+
+Marketplace discovery (`scopeDiscoverable`) excludes campaigns whose owning Business is not `active`. Sanction does not cancel Deals, reverse commissions, or mutate campaign/deal rows.
 
 ### Admin provisioning
 

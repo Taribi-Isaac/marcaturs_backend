@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminCampaignMarketingResourceController;
 use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
 use App\Http\Controllers\Api\V1\Admin\AdminDisputeController;
+use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
 use App\Http\Controllers\Api\V1\AmbassadorProfileController;
 use App\Http\Controllers\Api\V1\AuthController;
@@ -210,6 +211,15 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
         Route::middleware('role:BUSINESS')->prefix('campaign-featured')->name('campaign-featured.')->group(function (): void {
             Route::get('/packages', [CampaignFeaturedController::class, 'packages'])->name('packages');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin/users')->name('admin.users.')->group(function (): void {
+            Route::get('/', [AdminUserController::class, 'index'])->name('index');
+            Route::get('/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('show');
+            Route::post('/{user}/restrict', [AdminUserController::class, 'restrict'])->whereNumber('user')->name('restrict');
+            Route::post('/{user}/suspend', [AdminUserController::class, 'suspend'])->whereNumber('user')->name('suspend');
+            Route::post('/{user}/restore', [AdminUserController::class, 'restore'])->whereNumber('user')->name('restore');
+            Route::post('/{user}/ban', [AdminUserController::class, 'ban'])->whereNumber('user')->name('ban');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {

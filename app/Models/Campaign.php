@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AccountStatus;
 use App\Enums\CampaignStatus;
 use App\Enums\CampaignVersionStatus;
 use Database\Factories\CampaignFactory;
@@ -56,6 +57,9 @@ class Campaign extends Model
             })
             ->whereHas('category', function (Builder $category): void {
                 $category->assignable();
+            })
+            ->whereHas('user', function (Builder $owner): void {
+                $owner->where('status', AccountStatus::Active->value);
             });
     }
 

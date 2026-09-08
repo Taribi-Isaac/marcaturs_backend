@@ -25,6 +25,7 @@ class RedactSensitiveContextProcessorTest extends TestCase
                 'payment_account_identifier' => '0000000000',
                 'content' => 'private chat text',
                 'report_reason' => 'abuse report text',
+                'reason' => 'account sanction reason',
             ],
         ]);
 
@@ -40,5 +41,6 @@ class RedactSensitiveContextProcessorTest extends TestCase
         $this->assertSame('[REDACTED]', $redacted['nested']['payment_account_identifier']);
         $this->assertSame('[REDACTED]', $redacted['nested']['content']);
         $this->assertSame('[REDACTED]', $redacted['nested']['report_reason']);
+        $this->assertSame('[REDACTED]', $redacted['nested']['reason']);
     }
 }

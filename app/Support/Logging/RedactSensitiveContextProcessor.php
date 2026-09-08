@@ -55,6 +55,7 @@ final class RedactSensitiveContextProcessor implements ProcessorInterface
         'content',
         'report_reason',
         'message_body',
+        'reason',
     ];
 
     public function __invoke(LogRecord $record): LogRecord

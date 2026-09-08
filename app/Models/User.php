@@ -102,6 +102,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * @return HasMany<UserStatusEvent, $this>
+     */
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(UserStatusEvent::class, 'target_user_id')->orderBy('id');
+    }
+
+    /**
      * @return HasMany<ConversationParticipant, $this>
      */
     public function conversationParticipations(): HasMany
