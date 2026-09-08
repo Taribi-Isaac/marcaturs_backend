@@ -72,6 +72,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
             Route::get('/me', [AuthController::class, 'me'])->name('me');
 
+            Route::post('/change-password', [AuthController::class, 'changePassword'])
+                ->middleware('throttle:change-password')
+                ->name('change-password');
+
             Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
                 ->middleware('throttle:email-verification')
                 ->name('email.verification-notification');

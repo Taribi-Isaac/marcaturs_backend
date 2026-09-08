@@ -30,6 +30,7 @@ return [
         'login_per_minute' => (int) env('LOGIN_RATE_LIMIT_PER_MINUTE', 5),
         'registration_per_minute' => (int) env('REGISTRATION_RATE_LIMIT_PER_MINUTE', 5),
         'password_reset_per_minute' => (int) env('PASSWORD_RESET_RATE_LIMIT_PER_MINUTE', 5),
+        'change_password_per_minute' => (int) env('CHANGE_PASSWORD_RATE_LIMIT_PER_MINUTE', 5),
         'email_verification_per_minute' => (int) env('EMAIL_VERIFICATION_RATE_LIMIT_PER_MINUTE', 5),
         'uploads_per_minute' => (int) env('UPLOAD_RATE_LIMIT_PER_MINUTE', 10),
     ],

@@ -12,6 +12,8 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthenticationService
 {
@@ -65,6 +67,33 @@ class AuthenticationService
         if ($request->hasSession()) {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+        }
+    }
+
+    /**
+     * Change the authenticated user's password.
+     *
+     * Keeps the current Sanctum personal access token (and web session when present)
+     * so Admin Control UX is not forced to re-login. Revokes other personal access
+     * tokens so previously issued credentials are no longer trusted.
+     */
+    public function changePassword(User $user, string $password, Request $request): void
+    {
+        $user->forceFill([
+            'password' => $password,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $currentToken = $user->currentAccessToken();
+
+        if ($currentToken instanceof PersonalAccessToken) {
+            $user->tokens()->whereKeyNot($currentToken->getKey())->delete();
+        } else {
+            $user->tokens()->delete();
+        }
+
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
         }
     }
 

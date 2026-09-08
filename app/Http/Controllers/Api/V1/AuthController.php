@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\Role;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Auth\ChangePasswordRequest;
 use App\Http\Requests\Api\V1\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Api\V1\Auth\LoginRequest;
 use App\Http\Requests\Api\V1\Auth\RegisterRequest;
@@ -67,6 +68,22 @@ class AuthController extends Controller
         return ApiResponse::success(
             (new UserResource($request->user()))->resolve($request),
         );
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $this->authentication->changePassword(
+            $user,
+            $request->string('password')->toString(),
+            $request,
+        );
+
+        return ApiResponse::success([
+            'message' => 'Your password has been changed.',
+        ]);
     }
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse

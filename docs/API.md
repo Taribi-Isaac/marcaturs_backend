@@ -121,6 +121,7 @@ TAD direction: Laravel Sanctum with first-party session cookies for the web app.
 | `POST` | `/api/v1/auth/email/verification-notification` | Sanctum | `email-verification` (+ `api`) |
 | `POST` | `/api/v1/auth/logout` | Sanctum | `api` |
 | `GET` | `/api/v1/auth/me` | Sanctum | `api` |
+| `POST` | `/api/v1/auth/change-password` | Sanctum | `change-password` (+ `api`) |
 
 SPA browsers should still call `GET /sanctum/csrf-cookie` before cookie-based login.
 
@@ -187,6 +188,22 @@ Valid signature + matching email hash marks `email_verified_at`. Invalid/expired
 ### Current user
 
 `GET /api/v1/auth/me` returns identity fields: `id`, `name`, `email`, `role`, `status`, `email_verified_at`, `last_login_at`, `created_at`. It does not return password, hash, token, or `remember_token`.
+
+### Change password
+
+Authenticated self-service for the **current** user only (any role: Admin, Business, Ambassador). There is no `user_id` target; another Admin cannot change someone else's password through this endpoint.
+
+`POST /api/v1/auth/change-password`
+
+```json
+{
+  "current_password": "password123",
+  "password": "new-password-123",
+  "password_confirmation": "new-password-123"
+}
+```
+
+Requires a correct `current_password`. New password uses `Password::defaults()` (min 8) and must differ from the current password. On success: password is hashed, `remember_token` is rotated, other Sanctum personal access tokens are revoked, and the **current** token/session remains valid (no forced re-login). Response is `{ "message": "Your password has been changed." }` with no token or password fields. Restricted accounts may change password; suspended/banned cannot (`account.access`). Rate-limited by `change-password`. No password-change email is sent in this task.
 
 ### Logout
 
