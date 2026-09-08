@@ -1347,7 +1347,8 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}"
+            "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}",
+            "description": "Admin campaign detail. When current_version is published, response includes commercial terms (product/pricing/commission/policies). Omits payment_account_identifier, payment_instructions, and payment_contact (marketplace redaction)."
           }
         },
         {

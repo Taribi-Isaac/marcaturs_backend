@@ -375,7 +375,7 @@ Allowed campaign statuses are driven by **explicit lifecycle actions** (MH-BE-00
 | `PATCH` | `/api/v1/campaigns/{id}/versions/{n}` | Sanctum | BUSINESS | Update a **draft** version |
 | `POST` | `/api/v1/campaigns/{id}/versions/{n}/publish` | Sanctum | BUSINESS | Freeze a complete draft snapshot |
 | `GET` | `/api/v1/admin/campaigns` | Sanctum | ADMIN | List campaigns (`?status=`) |
-| `GET` | `/api/v1/admin/campaigns/{id}` | Sanctum | ADMIN | Show any campaign |
+| `GET` | `/api/v1/admin/campaigns/{id}` | Sanctum | ADMIN | Show any campaign; `current_version` includes published commercial terms (payment account identifiers omitted) |
 | `POST` | `/api/v1/admin/campaigns/{id}/approve` | Sanctum | ADMIN | submitted → approved |
 | `POST` | `/api/v1/admin/campaigns/{id}/reject` | Sanctum | ADMIN | submitted → draft (`reason`) |
 | `POST` | `/api/v1/admin/campaigns/{id}/request-modification` | Sanctum | ADMIN | submitted → draft (`reason`) |

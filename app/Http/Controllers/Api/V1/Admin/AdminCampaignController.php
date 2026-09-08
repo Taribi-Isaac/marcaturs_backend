@@ -39,7 +39,7 @@ class AdminCampaignController extends Controller
     public function show(Campaign $campaign): JsonResponse
     {
         return ApiResponse::success(
-            (new AdminCampaignResource($this->lifecycle->adminShow($campaign)))->resolve(),
+            (new AdminCampaignResource($this->lifecycle->adminShow($campaign), true))->resolve(),
         );
     }
 

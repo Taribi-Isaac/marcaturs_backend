@@ -19,6 +19,8 @@ Commercial terms live **on the version**. Publishing a version freezes a snapsho
 
 `current_campaign_version_id` is the latest published version. Future Deals must bind to a specific published version id.
 
+Admin `GET /api/v1/admin/campaigns/{id}` expands `current_version` with the published commercial snapshot (product, pricing, commission, claims/policies, payment destination name/provider, terms). It omits `payment_account_identifier`, `payment_instructions`, and `payment_contact` (same marketplace redaction). Unpublished/draft versions are never returned as the commercial contract; if a non-published row is incorrectly pointed as current, Admin detail exposes identity only.
+
 Version mutation is blocked while the campaign is `submitted`, `approved`, `suspended`, or `closed`.
 
 ## Campaign lifecycle (MH-BE-007)
