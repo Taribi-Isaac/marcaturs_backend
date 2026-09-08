@@ -509,7 +509,7 @@ Operational investigation cases (MH-BE-025D). Separate from Deal status. See [do
 | `POST` | `/api/v1/disputes/{id}/attachments` | Sanctum | Party | Upload private attachment |
 | `GET` | `/api/v1/disputes/{id}/attachments/{id}/download` | Sanctum | Party | Download attachment |
 | `GET/POST/PATCH` | `/api/v1/admin/dispute-categories` | Sanctum | ADMIN | Manage categories |
-| `GET` | `/api/v1/admin/disputes` | Sanctum | ADMIN | List all |
+| `GET` | `/api/v1/admin/disputes` | Sanctum | ADMIN | List all (optional `?status=` DisputeStatus) |
 | `GET` | `/api/v1/admin/disputes/{id}` | Sanctum | ADMIN | Show + related Deal/Commission |
 | `POST` | `/api/v1/admin/disputes/{id}/start-review` | Sanctum | ADMIN | `submitted → under_review` |
 | `POST` | `/api/v1/admin/disputes/{id}/request-evidence` | Sanctum | ADMIN | → `evidence_requested` |

@@ -2579,7 +2579,26 @@
                 "value": "Bearer {{adminToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/admin/disputes"
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/disputes?status=submitted",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "disputes"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "submitted",
+                  "description": "Optional. DisputeStatus: submitted | under_review | evidence_requested | decision_pending | resolved | closed",
+                  "disabled": true
+                }
+              ]
+            }
           }
         },
         {

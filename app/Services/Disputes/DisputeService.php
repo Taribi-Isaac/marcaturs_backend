@@ -126,9 +126,9 @@ class DisputeService
         return $this->withParticipantRelations($dispute);
     }
 
-    public function listForAdmin(int $perPage = 20): LengthAwarePaginator
+    public function listForAdmin(?DisputeStatus $status = null, int $perPage = 20): LengthAwarePaginator
     {
-        return Dispute::query()
+        $query = Dispute::query()
             ->with([
                 'category',
                 'reporter',
@@ -139,8 +139,13 @@ class DisputeService
                 'deal.campaignVersion',
                 'commission',
             ])
-            ->orderByDesc('id')
-            ->paginate($perPage);
+            ->orderByDesc('id');
+
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        return $query->paginate($perPage);
     }
 
     public function showForAdmin(Dispute $dispute): Dispute

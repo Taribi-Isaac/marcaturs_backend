@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Enums\DisputeStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Admin\Disputes\AdminDisputeIndexRequest;
 use App\Http\Requests\Api\V1\Admin\Disputes\AdminDisputeNoteRequest;
 use App\Http\Requests\Api\V1\Admin\Disputes\AdminRequestEvidenceRequest;
 use App\Http\Requests\Api\V1\Admin\Disputes\AdminResolveDisputeRequest;
@@ -55,9 +57,12 @@ class AdminDisputeController extends Controller
         );
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(AdminDisputeIndexRequest $request): JsonResponse
     {
-        $paginator = $this->disputes->listForAdmin();
+        $statusValue = $request->validated('status');
+        $status = is_string($statusValue) ? DisputeStatus::from($statusValue) : $statusValue;
+
+        $paginator = $this->disputes->listForAdmin($status);
 
         return ApiResponse::paginated(
             $paginator,

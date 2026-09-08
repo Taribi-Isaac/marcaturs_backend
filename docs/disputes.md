@@ -36,7 +36,7 @@ Admin-configurable `dispute_categories` (not a PHP enum). Seeded examples: unpai
 | `POST` | `/api/v1/disputes/{id}/attachments` | Party (status gate) |
 | `GET` | `/api/v1/disputes/{id}/attachments/{id}/download` | Party |
 | `GET/POST/PATCH` | `/api/v1/admin/dispute-categories` | ADMIN |
-| `GET` | `/api/v1/admin/disputes` | ADMIN |
+| `GET` | `/api/v1/admin/disputes` | ADMIN (optional `?status=` DisputeStatus) |
 | `GET` | `/api/v1/admin/disputes/{id}` | ADMIN (+ related Deal/Commission/evidence) |
 | `POST` | `/api/v1/admin/disputes/{id}/start-review` | ADMIN |
 | `POST` | `/api/v1/admin/disputes/{id}/request-evidence` | ADMIN (`reason` required) |
@@ -47,6 +47,8 @@ Admin-configurable `dispute_categories` (not a PHP enum). Seeded examples: unpai
 | `POST/GET` | `/api/v1/admin/disputes/{id}/attachments...` | ADMIN |
 
 No generic `PATCH status`. Create body: `{ "category_id", "description" }`. Public case reference looks like `MH-D-…`.
+
+Admin list supports optional `?status=` matching `DisputeStatus` values exactly (`submitted`, `under_review`, `evidence_requested`, `decision_pending`, `resolved`, `closed`). Filter is applied in the query before pagination. Invalid status returns `400` `validation_error`. Omitting `status` preserves unfiltered listing.
 
 ## Attachments
 
