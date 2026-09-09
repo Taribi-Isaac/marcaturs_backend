@@ -33,6 +33,7 @@ return [
         'change_password_per_minute' => (int) env('CHANGE_PASSWORD_RATE_LIMIT_PER_MINUTE', 5),
         'email_verification_per_minute' => (int) env('EMAIL_VERIFICATION_RATE_LIMIT_PER_MINUTE', 5),
         'uploads_per_minute' => (int) env('UPLOAD_RATE_LIMIT_PER_MINUTE', 10),
+        'official_payment_per_minute' => (int) env('OFFICIAL_PAYMENT_RATE_LIMIT_PER_MINUTE', 30),
     ],
 
     'pagination' => [

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Campaign;
+use App\Support\Campaigns\OfficialPaymentShare;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,6 +43,10 @@ class CampaignResource extends JsonResource
             'closed_at' => $this->closed_at?->toIso8601String(),
             'suspended_at' => $this->suspended_at?->toIso8601String(),
             'review_reason' => $this->review_reason,
+            'official_payment' => $this->when(
+                $this->current_campaign_version_id !== null,
+                fn () => OfficialPaymentShare::references($this->resource),
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

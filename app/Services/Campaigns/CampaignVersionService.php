@@ -11,6 +11,7 @@ use App\Models\CampaignVersion;
 use App\Models\User;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
+use App\Support\Campaigns\OfficialPaymentShare;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -118,6 +119,7 @@ class CampaignVersionService
 
             $campaign->current_campaign_version_id = $lockedVersion->id;
             $campaign->save();
+            OfficialPaymentShare::ensureToken($campaign);
 
             return $lockedVersion->refresh();
         });

@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\V1\DisputeController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\MarketplaceCampaignController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\OfficialPaymentInformationController;
 use App\Http\Controllers\Api\V1\PaymentEvidenceController;
 use App\Http\Controllers\Api\V1\PaystackWebhookController;
 use App\Http\Controllers\Api\V1\VerificationController;
@@ -48,6 +49,11 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         Route::get('/', [MarketplaceCampaignController::class, 'index'])->name('index');
         Route::get('/{campaign}', [MarketplaceCampaignController::class, 'show'])->name('show');
     });
+
+    Route::get('/public/official-payment-information/{token}', [OfficialPaymentInformationController::class, 'show'])
+        ->middleware('throttle:official-payment')
+        ->where('token', '[A-Za-z0-9]+')
+        ->name('public.official-payment-information.show');
 
     Route::prefix('auth')->name('auth.')->group(function (): void {
         Route::post('/register', [AuthController::class, 'register'])

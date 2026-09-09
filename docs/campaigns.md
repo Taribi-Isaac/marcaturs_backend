@@ -112,7 +112,31 @@ Discoverable only when:
 | `price_min` / `price_max` | Published version `price_amount` |
 | `page` / `per_page` | Pagination (default 15, max 100) |
 
-Order is Featured campaigns first (`is_featured`), then newest listing (`listing_starts_at`, then `id`). Optional `featured=true|false` filter. Save/favourite and the official payment-information page (account numbers) are later tasks. Detail exposes `payment_destination_name` and `payment_provider` only. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
+Order is Featured campaigns first (`is_featured`), then newest listing (`listing_starts_at`, then `id`). Optional `featured=true|false` filter. Save/favourite is a later task. Detail exposes `payment_destination_name` and `payment_provider` only (not account identifiers). Detail also exposes `official_payment` share references (`token`, `path`, `share_path`, `share_url`) for Ambassadors to copy the Official Payment Information link. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
+
+## Official Payment Information (MH-BE-042)
+
+Public, unauthenticated, read-only page for customers to see where to pay the Business for a discoverable campaign.
+
+| Item | Rule |
+| --- | --- |
+| Endpoint | `GET /api/v1/public/official-payment-information/{token}` |
+| Auth | None required (Business/Ambassador sessions also work) |
+| Source of truth | Published **current** Campaign Version payment destination fields |
+| Identifier | Opaque `campaigns.official_payment_token` (48-char), generated on version publish / first share resolution |
+| Eligibility | Same as marketplace `discoverable()`: `active` \| `expiring` + published current version + assignable category + active Business owner |
+| Ineligible | `draft`, `submitted`, `approved`, `expired`, `deactivated`, `suspended`, `closed` → **404** (same shape as unknown token) |
+| Rate limit | `throttle:official-payment` (default 30/min by IP) |
+
+**Financial boundary:** Customer → Business. MarcatursHub does not receive, hold, route, escrow, or process this purchase payment. Paystack remains platform-fee only (extension/Featured).
+
+**Exposed payment fields:** `destination_name`, `provider`, `account_identifier`, `instructions`, `contact` (from the published current version).
+
+**Not exposed:** storage keys, verification evidence, chat, admin fields, Deal data, private user IDs beyond campaign id for context. Marketplace list/detail continue to redact account identifier / instructions / contact.
+
+**Deals / evidence:** Viewing this page creates neither a Deal nor Payment Evidence. Deal commercial snapshots are never rewritten when a new version is published; the public page always follows the current published version.
+
+**Share URL:** API returns `share.path` (API) and `share.share_path` / `share.share_url` (frontend route `/pay/{token}` via `FRONTEND_URL`) for “Copy Official Payment Link”.
 
 ## Campaign marketing resources (MH-BE-010 / ENG-019)
 

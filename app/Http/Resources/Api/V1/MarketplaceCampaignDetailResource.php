@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\V1;
 
 use App\Enums\OverallVerificationStatus;
 use App\Models\Campaign;
+use App\Support\Campaigns\OfficialPaymentShare;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -44,6 +45,7 @@ class MarketplaceCampaignDetailResource extends JsonResource
             'terms' => $version?->terms,
             'payment_destination_name' => $version?->payment_destination_name,
             'payment_provider' => $version?->payment_provider,
+            'official_payment' => OfficialPaymentShare::references($this->resource),
             'marketing_resources' => CampaignMarketingResourceResource::collection(
                 $this->whenLoaded('marketingResources'),
             ),

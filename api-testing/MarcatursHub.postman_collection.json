@@ -50,6 +50,10 @@
       "value": "1"
     },
     {
+      "key": "officialPaymentToken",
+      "value": ""
+    },
+    {
       "key": "userId",
       "value": "1"
     },
@@ -959,6 +963,46 @@
             ],
             "url": "{{baseUrl}}/api/v1/marketplace/campaigns/{{campaignId}}"
           }
+        },
+        {
+          "name": "Official Payment Information",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/public/official-payment-information/{{officialPaymentToken}}",
+            "description": "MH-BE-042 public Official Payment Information. No auth. Discoverable campaigns only (active/expiring). Token is opaque campaigns.official_payment_token. Returns payment destination from the published current Campaign Version. 404 for unknown/ineligible tokens (same shape). Demo values only — never production credentials."
+          },
+          "response": [
+            {
+              "name": "Success — discoverable campaign",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"financial_boundary\": {\n      \"customer_pays\": \"business\",\n      \"platform_holds_customer_funds\": false,\n      \"statement\": \"Customers pay the Business directly. MarcatursHub does not receive, hold, route, escrow, or process this purchase payment.\"\n    },\n    \"share\": {\n      \"token\": \"demoofficialpaymenttoken000000000000000000000000\",\n      \"path\": \"/api/v1/public/official-payment-information/demoofficialpaymenttoken000000000000000000000000\",\n      \"share_path\": \"/pay/demoofficialpaymenttoken000000000000000000000000\",\n      \"share_url\": \"http://localhost:3000/pay/demoofficialpaymenttoken000000000000000000000000\"\n    },\n    \"business\": {\n      \"legal_name\": \"Ada Solar Ventures Ltd\",\n      \"trading_name\": \"Ada Solar\",\n      \"operating_location\": \"Lagos\",\n      \"website\": \"https://example.test/business.solar\",\n      \"verification_status\": \"VERIFIED\"\n    },\n    \"campaign\": {\n      \"id\": 82,\n      \"title\": \"Demo Solar Street Light Kits\",\n      \"status\": \"active\",\n      \"category\": { \"id\": 77, \"name\": \"Solar & Energy\", \"slug\": \"demo-solar-energy\" }\n    },\n    \"campaign_version\": {\n      \"version_number\": 1,\n      \"status\": \"published\",\n      \"product_name\": \"Solar street light installation kit\",\n      \"service_area\": \"Lagos and surrounding areas\",\n      \"pricing_method\": \"fixed\",\n      \"price_amount\": \"250000.00\",\n      \"price_currency\": \"NGN\"\n    },\n    \"payment_destination\": {\n      \"destination_name\": \"Ada Solar Ventures Ltd\",\n      \"provider\": \"Demo Bank\",\n      \"account_identifier\": \"0123456789\",\n      \"instructions\": \"Pay Ada Solar directly. MarcatursHub does not receive this payment.\",\n      \"contact\": null\n    }\n  }\n}"
+            },
+            {
+              "name": "Not found — unknown or ineligible",
+              "status": "Not Found",
+              "code": 404,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"not_found\",\n    \"message\": \"The requested resource was not found.\"\n  }\n}"
+            }
+          ]
         },
         {
           "name": "Download Marketplace Resource",

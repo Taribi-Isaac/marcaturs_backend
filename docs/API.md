@@ -489,6 +489,7 @@ Public listing for ambassadors and guests (PRD §21). Uses existing lifecycle st
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/marketplace/campaigns` | Public | Paginated discoverable campaigns |
 | `GET` | `/api/v1/marketplace/campaigns/{id}` | Public | Public detail for a discoverable campaign; otherwise `404` |
+| `GET` | `/api/v1/public/official-payment-information/{token}` | Public | Official Payment Information (MH-BE-042); opaque token; discoverable campaigns only; rate limit `official-payment` |
 
 Query parameters: `q`, `category_id`, `commission_type`, `service_area`, `status` (`active`\|`expiring`), `verified`, `featured`, `price_min`, `price_max`, `page`, `per_page` (default 15, max 100). Sort is Featured first, then newest listing. Cards expose `is_featured`. See [docs/campaigns.md](campaigns.md).
 
