@@ -263,6 +263,20 @@ Successful mutations write a `user_status_events` audit row (actor, target, acti
 
 Marketplace discovery (`scopeDiscoverable`) excludes campaigns whose owning Business is not `active`. Sanction does not cancel Deals, reverse commissions, or mutate campaign/deal rows.
 
+## Admin Overview
+
+Admin Overview (MH-BE-043) is a **read-only** operational snapshot for ADMIN. It is not BI analytics and does not invent KPIs beyond deterministic counts from existing domains.
+
+Auth: Sanctum + `account.access` + `role:ADMIN`. Throttle: default API limiter.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/overview` | Platform-wide counts: users, campaigns, deals, commissions, disputes, verification submissions, successful platform payment volume, attention aggregates |
+
+Definitions, platform-payment boundary (Business → MarcatursHub; not commission obligations), timezone windows, and deferred analytics are documented in [admin-overview.md](admin-overview.md).
+
+Response sections: `users`, `campaigns`, `deals`, `commissions`, `disputes`, `verification`, `platform_payments`, `attention`, plus `generated_at` and `timezone`. Money uses integer `amount_minor` grouped by `currency` (no cross-currency sums). Guest/Business/Ambassador → `401`/`403`.
+
 ## Admin Deals
 
 Admin Deals (MH-BE-041) is a **read-only investigation desk**. It does not confirm payment, cancel Deals, settle commissions, reject evidence, or edit snapshots.

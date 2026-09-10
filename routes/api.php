@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
 use App\Http\Controllers\Api\V1\Admin\AdminDealController;
 use App\Http\Controllers\Api\V1\Admin\AdminDisputeController;
+use App\Http\Controllers\Api\V1\Admin\AdminOverviewController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
 use App\Http\Controllers\Api\V1\AmbassadorProfileController;
@@ -218,6 +219,10 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
         Route::middleware('role:BUSINESS')->prefix('campaign-featured')->name('campaign-featured.')->group(function (): void {
             Route::get('/packages', [CampaignFeaturedController::class, 'packages'])->name('packages');
+        });
+
+        Route::middleware('role:ADMIN')->prefix('admin')->name('admin.')->group(function (): void {
+            Route::get('/overview', [AdminOverviewController::class, 'show'])->name('overview');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/users')->name('admin.users.')->group(function (): void {

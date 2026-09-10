@@ -1387,6 +1387,30 @@
       ]
     },
     {
+      "name": "Admin Overview",
+      "description": "MH-BE-043. Read-only operational snapshot for ADMIN. Successful platform payment volume is Business→MarcatursHub only; commissions remain Business→Ambassador obligations.",
+      "item": [
+        {
+          "name": "Get Overview",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/overview",
+            "description": "Requires ADMIN Sanctum token. Returns users, campaigns, deals, commissions, disputes, verification, platform_payments (paid only, by currency/purpose, today/this_month/all_time), and attention aggregates."
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin Users",
       "description": "MH-BE-039. BUSINESS/AMBASSADOR only. Discrete status actions require reason. ADMIN targets are not exposed.",
       "item": [
