@@ -24,7 +24,7 @@ class CampaignDiscoveryService
     {
         $query = Campaign::query()
             ->discoverable()
-            ->with(['category', 'currentVersion', 'user.businessProfile']);
+            ->with(['category', 'currentVersion', 'user.businessProfile', 'cover']);
 
         $this->applyFilters($query, $request);
 
@@ -44,7 +44,7 @@ class CampaignDiscoveryService
     {
         $campaign = Campaign::query()
             ->discoverable()
-            ->with(['category', 'currentVersion', 'user.businessProfile', 'marketingResources'])
+            ->with(['category', 'currentVersion', 'user.businessProfile', 'marketingResources', 'cover'])
             ->whereKey($campaignId)
             ->first();
 

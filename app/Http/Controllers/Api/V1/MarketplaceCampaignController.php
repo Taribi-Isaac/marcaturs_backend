@@ -8,6 +8,7 @@ use App\Http\Requests\Api\V1\Marketplace\MarketplaceCampaignIndexRequest;
 use App\Http\Resources\Api\V1\MarketplaceCampaignCardResource;
 use App\Http\Resources\Api\V1\MarketplaceCampaignDetailResource;
 use App\Models\Campaign;
+use App\Services\Campaigns\CampaignCoverService;
 use App\Services\Campaigns\CampaignDiscoveryService;
 use App\Services\Campaigns\CampaignMarketingResourceService;
 use App\Support\Api\ApiResponse;
@@ -20,6 +21,7 @@ class MarketplaceCampaignController extends Controller
     public function __construct(
         private readonly CampaignDiscoveryService $discovery,
         private readonly CampaignMarketingResourceService $resources,
+        private readonly CampaignCoverService $covers,
     ) {}
 
     public function index(MarketplaceCampaignIndexRequest $request): JsonResponse
@@ -46,6 +48,11 @@ class MarketplaceCampaignController extends Controller
     public function downloadResource(Request $request, int $campaign, int $resource): StreamedResponse
     {
         return $this->resources->downloadForAmbassador($request->user(), $campaign, $resource);
+    }
+
+    public function cover(int $campaign): StreamedResponse
+    {
+        return $this->covers->streamPublic($campaign);
     }
 
     /**

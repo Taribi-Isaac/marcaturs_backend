@@ -524,8 +524,8 @@
       ]
     },
     {
-      "name": "Verification — Participant",
-      "description": "BUSINESS or AMBASSADOR. Complete a profile first. Placeholders only — do not attach real identity documents.",
+      "name": "Verification \u2014 Participant",
+      "description": "BUSINESS or AMBASSADOR. Complete a profile first. Placeholders only \u2014 do not attach real identity documents.",
       "item": [
         {
           "name": "List My Requirements",
@@ -614,7 +614,7 @@
       ]
     },
     {
-      "name": "Verification — Administration",
+      "name": "Verification \u2014 Administration",
       "description": "ADMIN only. Use a token from marcaturs:create-admin. Do not store real evidence in examples.",
       "item": [
         {
@@ -862,7 +862,7 @@
       ]
     },
     {
-      "name": "Categories — Administration",
+      "name": "Categories \u2014 Administration",
       "description": "ADMIN only. Create and update category definitions, including listing_status and is_active.",
       "item": [
         {
@@ -965,6 +965,20 @@
           }
         },
         {
+          "name": "Stream Campaign Cover (public)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "image/*"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/marketplace/campaigns/{{campaignId}}/cover",
+            "description": "Public stream for discoverable campaigns with a cover. Returns 404 when ineligible or missing."
+          }
+        },
+        {
           "name": "Official Payment Information",
           "request": {
             "method": "GET",
@@ -975,11 +989,11 @@
               }
             ],
             "url": "{{baseUrl}}/api/v1/public/official-payment-information/{{officialPaymentToken}}",
-            "description": "MH-BE-042 public Official Payment Information. No auth. Discoverable campaigns only (active/expiring). Token is opaque campaigns.official_payment_token. Returns payment destination from the published current Campaign Version. 404 for unknown/ineligible tokens (same shape). Demo values only — never production credentials."
+            "description": "MH-BE-042 public Official Payment Information. No auth. Discoverable campaigns only (active/expiring). Token is opaque campaigns.official_payment_token. Returns payment destination from the published current Campaign Version. 404 for unknown/ineligible tokens (same shape). Demo values only \u2014 never production credentials."
           },
           "response": [
             {
-              "name": "Success — discoverable campaign",
+              "name": "Success \u2014 discoverable campaign",
               "status": "OK",
               "code": 200,
               "header": [
@@ -991,7 +1005,7 @@
               "body": "{\n  \"success\": true,\n  \"data\": {\n    \"financial_boundary\": {\n      \"customer_pays\": \"business\",\n      \"platform_holds_customer_funds\": false,\n      \"statement\": \"Customers pay the Business directly. MarcatursHub does not receive, hold, route, escrow, or process this purchase payment.\"\n    },\n    \"share\": {\n      \"token\": \"demoofficialpaymenttoken000000000000000000000000\",\n      \"path\": \"/api/v1/public/official-payment-information/demoofficialpaymenttoken000000000000000000000000\",\n      \"share_path\": \"/pay/demoofficialpaymenttoken000000000000000000000000\",\n      \"share_url\": \"http://localhost:3000/pay/demoofficialpaymenttoken000000000000000000000000\"\n    },\n    \"business\": {\n      \"legal_name\": \"Ada Solar Ventures Ltd\",\n      \"trading_name\": \"Ada Solar\",\n      \"operating_location\": \"Lagos\",\n      \"website\": \"https://example.test/business.solar\",\n      \"verification_status\": \"VERIFIED\"\n    },\n    \"campaign\": {\n      \"id\": 82,\n      \"title\": \"Demo Solar Street Light Kits\",\n      \"status\": \"active\",\n      \"category\": { \"id\": 77, \"name\": \"Solar & Energy\", \"slug\": \"demo-solar-energy\" }\n    },\n    \"campaign_version\": {\n      \"version_number\": 1,\n      \"status\": \"published\",\n      \"product_name\": \"Solar street light installation kit\",\n      \"service_area\": \"Lagos and surrounding areas\",\n      \"pricing_method\": \"fixed\",\n      \"price_amount\": \"250000.00\",\n      \"price_currency\": \"NGN\"\n    },\n    \"payment_destination\": {\n      \"destination_name\": \"Ada Solar Ventures Ltd\",\n      \"provider\": \"Demo Bank\",\n      \"account_identifier\": \"0123456789\",\n      \"instructions\": \"Pay Ada Solar directly. MarcatursHub does not receive this payment.\",\n      \"contact\": null\n    }\n  }\n}"
             },
             {
-              "name": "Not found — unknown or ineligible",
+              "name": "Not found \u2014 unknown or ineligible",
               "status": "Not Found",
               "code": 404,
               "header": [
@@ -1024,7 +1038,7 @@
       ]
     },
     {
-      "name": "Campaigns — Business",
+      "name": "Campaigns \u2014 Business",
       "description": "BUSINESS campaign shell and versioned commercial terms. Complete a profile first. Not discovery, deals, or payments.",
       "item": [
         {
@@ -1264,6 +1278,75 @@
           }
         },
         {
+          "name": "Campaign Cover",
+          "item": [
+            {
+              "name": "Upload or Replace Cover",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "jpeg/jpg/png/webp"
+                    }
+                  ]
+                },
+                "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/cover",
+                "description": "Owner create (201) or replace (200). Throttled uploads."
+              }
+            },
+            {
+              "name": "Show Cover Metadata",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/cover"
+              }
+            },
+            {
+              "name": "Download Cover",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "image/*"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/cover/download"
+              }
+            },
+            {
+              "name": "Delete Cover",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/cover"
+              }
+            }
+          ]
+        },
+        {
           "name": "Upload Marketing Resource",
           "request": {
             "method": "POST",
@@ -1388,7 +1471,7 @@
     },
     {
       "name": "Admin Overview",
-      "description": "MH-BE-043. Read-only operational snapshot for ADMIN. Successful platform payment volume is Business→MarcatursHub only; commissions remain Business→Ambassador obligations.",
+      "description": "MH-BE-043. Read-only operational snapshot for ADMIN. Successful platform payment volume is Business\u2192MarcatursHub only; commissions remain Business\u2192Ambassador obligations.",
       "item": [
         {
           "name": "Get Overview",
@@ -1608,7 +1691,7 @@
       ]
     },
     {
-      "name": "Campaign Lifecycle — Administration",
+      "name": "Campaign Lifecycle \u2014 Administration",
       "description": "ADMIN moderation. Approve does not activate. Publish version first.",
       "item": [
         {
@@ -1809,12 +1892,43 @@
             ],
             "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/resources/{{resourceId}}/download"
           }
+        },
+        {
+          "name": "Campaign Cover \u2014 Administration",
+          "item": [
+            {
+              "name": "Show Cover Metadata",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/cover"
+              }
+            },
+            {
+              "name": "Download Cover",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "image/*"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/admin/campaigns/{{campaignId}}/cover/download"
+              }
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Campaign Extensions — Business",
-      "description": "BUSINESS paid listing extension. Paystack platform purchase only. Publish ≠ activate ≠ extend.",
+      "name": "Campaign Extensions \u2014 Business",
+      "description": "BUSINESS paid listing extension. Paystack platform purchase only. Publish \u2260 activate \u2260 extend.",
       "item": [
         {
           "name": "List Extension Packages",
@@ -1903,7 +2017,7 @@
       ]
     },
     {
-      "name": "Campaign Featured — Business",
+      "name": "Campaign Featured \u2014 Business",
       "description": "BUSINESS paid Premium Visibility. Independent of Extension. No refund for unused Featured time.",
       "item": [
         {
@@ -1993,7 +2107,7 @@
       ]
     },
     {
-      "name": "Campaign Extension Packages — Administration",
+      "name": "Campaign Extension Packages \u2014 Administration",
       "description": "ADMIN configurable duration and price. Example packages only; not product constants.",
       "item": [
         {
@@ -2083,7 +2197,7 @@
       ]
     },
     {
-      "name": "Campaign Featured Packages — Administration",
+      "name": "Campaign Featured Packages \u2014 Administration",
       "description": "ADMIN Featured packages. Separate from Extension packages. No paid-bypass activate.",
       "item": [
         {
@@ -2205,7 +2319,7 @@
     },
     {
       "name": "Conversations",
-      "description": "One Business–Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
+      "description": "One Business\u2013Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
       "item": [
         {
           "name": "List My Conversations",
@@ -2694,7 +2808,7 @@
     },
     {
       "name": "Commissions",
-      "description": "Business→Ambassador liability and settlement recording (MH-BE-019/020). due → paid → received. No payout.",
+      "description": "Business\u2192Ambassador liability and settlement recording (MH-BE-019/020). due \u2192 paid \u2192 received. No payout.",
       "item": [
         {
           "name": "List My Commissions",

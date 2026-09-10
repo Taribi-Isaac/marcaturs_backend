@@ -16,8 +16,10 @@ return [
     'expiring_lead_days' => (int) env('CAMPAIGN_EXPIRING_LEAD_DAYS', 0),
 
     /*
-     | Campaign marketing files (TAD §18). Disk may later point at private S3.
+     | Campaign marketing files and Campaign Cover images (TAD §18).
+     | Disk may later point at private S3.
      | Size is platform configuration, not a product-document constant.
+     | Cover reuses CAMPAIGN_RESOURCE_MAX_FILE_KB (no separate cover limit).
      */
     'media_disk' => env('CAMPAIGN_MEDIA_DISK', 'campaign_media'),
 

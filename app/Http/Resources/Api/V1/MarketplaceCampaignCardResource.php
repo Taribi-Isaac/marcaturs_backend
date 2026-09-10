@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\V1;
 
 use App\Enums\OverallVerificationStatus;
 use App\Models\Campaign;
+use App\Support\Campaigns\CampaignCoverPresentation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -46,6 +47,7 @@ class MarketplaceCampaignCardResource extends JsonResource
             'service_area' => $version?->service_area,
             'version_number' => $version?->version_number,
             'is_featured' => (bool) $this->is_featured,
+            'cover_image' => CampaignCoverPresentation::marketplace($this->resource),
             'listing_starts_at' => $this->listing_starts_at?->toIso8601String(),
             'listing_expires_at' => $this->listing_expires_at?->toIso8601String(),
         ];

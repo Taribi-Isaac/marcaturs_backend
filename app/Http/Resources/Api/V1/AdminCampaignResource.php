@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\V1;
 use App\Enums\CampaignVersionStatus;
 use App\Models\Campaign;
 use App\Models\CampaignVersion;
+use App\Support\Campaigns\CampaignCoverPresentation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,6 +32,11 @@ class AdminCampaignResource extends JsonResource
                 'role' => $this->user->role->value,
             ]),
         ]);
+
+        $payload['cover_image'] = CampaignCoverPresentation::managed(
+            $this->resource,
+            CampaignCoverPresentation::adminDownloadUrl((int) $this->id),
+        );
 
         if ($this->includeCommercialTerms && $this->relationLoaded('currentVersion')) {
             $payload['current_version'] = $this->adminCurrentVersion($this->currentVersion);

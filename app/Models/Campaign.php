@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'title',
@@ -101,6 +102,16 @@ class Campaign extends Model
     public function marketingResources(): HasMany
     {
         return $this->hasMany(CampaignMarketingResource::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Zero-or-one primary Campaign Cover (presentation asset; not a Version term).
+     *
+     * @return HasOne<CampaignCover, $this>
+     */
+    public function cover(): HasOne
+    {
+        return $this->hasOne(CampaignCover::class);
     }
 
     /**

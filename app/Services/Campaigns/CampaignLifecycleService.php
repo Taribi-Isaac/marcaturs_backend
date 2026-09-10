@@ -249,7 +249,7 @@ class CampaignLifecycleService
 
     public function adminShow(Campaign $campaign): Campaign
     {
-        return $campaign->load(['category', 'currentVersion', 'user']);
+        return $campaign->load(['category', 'currentVersion', 'user', 'cover']);
     }
 
     private function assertReadyForMarketplace(Campaign $campaign): void

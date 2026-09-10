@@ -503,9 +503,10 @@ Public listing for ambassadors and guests (PRD §21). Uses existing lifecycle st
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/marketplace/campaigns` | Public | Paginated discoverable campaigns |
 | `GET` | `/api/v1/marketplace/campaigns/{id}` | Public | Public detail for a discoverable campaign; otherwise `404` |
+| `GET` | `/api/v1/marketplace/campaigns/{id}/cover` | Public | Stream primary Campaign Cover when campaign is discoverable and a cover exists; otherwise `404` |
 | `GET` | `/api/v1/public/official-payment-information/{token}` | Public | Official Payment Information (MH-BE-042); opaque token; discoverable campaigns only; rate limit `official-payment` |
 
-Query parameters: `q`, `category_id`, `commission_type`, `service_area`, `status` (`active`\|`expiring`), `verified`, `featured`, `price_min`, `price_max`, `page`, `per_page` (default 15, max 100). Sort is Featured first, then newest listing. Cards expose `is_featured`. See [docs/campaigns.md](campaigns.md).
+Query parameters: `q`, `category_id`, `commission_type`, `service_area`, `status` (`active`\|`expiring`), `verified`, `featured`, `price_min`, `price_max`, `page`, `per_page` (default 15, max 100). Sort is Featured first, then newest listing. Cards expose `is_featured` and `cover_image` (`available` + controlled `url`). See [docs/campaigns.md](campaigns.md).
 
 ## Campaign marketing resources
 
@@ -524,6 +525,22 @@ Files are Campaign-scoped. Downloads are never public object URLs.
 | `GET` | `/api/v1/admin/campaigns/{id}/resources/{rid}/download` | Sanctum | ADMIN | Stream |
 
 Public marketplace detail includes `marketing_resources` metadata (no storage path). Uploads use limiter `uploads`.
+
+## Campaign Cover Image
+
+Zero-or-one primary presentation image per Campaign. Separate from marketing resources and Campaign Versions. See [docs/campaigns.md](campaigns.md).
+
+| Method | Path | Auth | Role | Purpose |
+| --- | --- | --- | --- | --- |
+| `POST` | `/api/v1/campaigns/{id}/cover` | Sanctum | BUSINESS owner | Upload or replace (`file`; `201` create / `200` replace) |
+| `GET` | `/api/v1/campaigns/{id}/cover` | Sanctum | BUSINESS owner | Cover metadata |
+| `GET` | `/api/v1/campaigns/{id}/cover/download` | Sanctum | BUSINESS owner | Stream cover |
+| `DELETE` | `/api/v1/campaigns/{id}/cover` | Sanctum | BUSINESS owner | Remove cover |
+| `GET` | `/api/v1/admin/campaigns/{id}/cover` | Sanctum | ADMIN | Cover metadata |
+| `GET` | `/api/v1/admin/campaigns/{id}/cover/download` | Sanctum | ADMIN | Stream cover |
+| `GET` | `/api/v1/marketplace/campaigns/{id}/cover` | Public | — | Stream when discoverable + cover exists |
+
+Business/Admin campaign payloads include `cover_image`. Marketplace list/detail include public `cover_image` (`available` + stream `url` only). Uploads use limiter `uploads`. Allowed: jpeg/jpg/png/webp. Size: `CAMPAIGN_RESOURCE_MAX_FILE_KB`.
 
 ## Business–Ambassador chat
 

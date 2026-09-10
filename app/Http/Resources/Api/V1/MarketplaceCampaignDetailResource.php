@@ -22,7 +22,7 @@ class MarketplaceCampaignDetailResource extends JsonResource
         $profile = $this->user?->businessProfile;
 
         return [
-            ...(new MarketplaceCampaignCardResource($this))->toArray($request),
+            ...(new MarketplaceCampaignCardResource($this->resource))->toArray($request),
             'business' => [
                 'legal_name' => $profile?->legal_name,
                 'trading_name' => $profile?->trading_name,

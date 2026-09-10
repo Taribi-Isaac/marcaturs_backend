@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignController;
+use App\Http\Controllers\Api\V1\Admin\AdminCampaignCoverController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignExtensionController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignFeaturedController;
 use App\Http\Controllers\Api\V1\Admin\AdminCampaignMarketingResourceController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Api\V1\AmbassadorProfileController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
 use App\Http\Controllers\Api\V1\CampaignController;
+use App\Http\Controllers\Api\V1\CampaignCoverController;
 use App\Http\Controllers\Api\V1\CampaignExtensionController;
 use App\Http\Controllers\Api\V1\CampaignFeaturedController;
 use App\Http\Controllers\Api\V1\CampaignMarketingResourceController;
@@ -48,7 +50,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
 
     Route::prefix('marketplace/campaigns')->name('marketplace.campaigns.')->group(function (): void {
         Route::get('/', [MarketplaceCampaignController::class, 'index'])->name('index');
-        Route::get('/{campaign}', [MarketplaceCampaignController::class, 'show'])->name('show');
+        Route::get('/{campaign}/cover', [MarketplaceCampaignController::class, 'cover'])
+            ->whereNumber('campaign')
+            ->name('cover');
+        Route::get('/{campaign}', [MarketplaceCampaignController::class, 'show'])
+            ->whereNumber('campaign')
+            ->name('show');
     });
 
     Route::get('/public/official-payment-information/{token}', [OfficialPaymentInformationController::class, 'show'])
@@ -215,6 +222,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->name('resources.update');
             Route::delete('/{campaign}/resources/{marketingResource}', [CampaignMarketingResourceController::class, 'destroy'])->name('resources.destroy');
             Route::get('/{campaign}/resources/{marketingResource}/download', [CampaignMarketingResourceController::class, 'download'])->name('resources.download');
+            Route::get('/{campaign}/cover', [CampaignCoverController::class, 'show'])->name('cover.show');
+            Route::post('/{campaign}/cover', [CampaignCoverController::class, 'store'])
+                ->middleware('throttle:uploads')
+                ->name('cover.store');
+            Route::delete('/{campaign}/cover', [CampaignCoverController::class, 'destroy'])->name('cover.destroy');
+            Route::get('/{campaign}/cover/download', [CampaignCoverController::class, 'download'])->name('cover.download');
         });
 
         Route::middleware('role:BUSINESS')->prefix('campaign-featured')->name('campaign-featured.')->group(function (): void {
@@ -255,6 +268,8 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/{campaign}/featured', [AdminCampaignFeaturedController::class, 'indexPurchases'])->name('featured.index');
             Route::get('/{campaign}/resources', [AdminCampaignMarketingResourceController::class, 'index'])->name('resources.index');
             Route::get('/{campaign}/resources/{marketingResource}/download', [AdminCampaignMarketingResourceController::class, 'download'])->name('resources.download');
+            Route::get('/{campaign}/cover', [AdminCampaignCoverController::class, 'show'])->name('cover.show');
+            Route::get('/{campaign}/cover/download', [AdminCampaignCoverController::class, 'download'])->name('cover.download');
         });
 
         Route::middleware('role:ADMIN')->prefix('admin/campaign-extension-packages')->name('admin.campaign-extension-packages.')->group(function (): void {

@@ -21,7 +21,7 @@ class AdminCampaignController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Campaign::query()
-            ->with(['category', 'currentVersion', 'user'])
+            ->with(['category', 'currentVersion', 'user', 'cover'])
             ->latest('id');
 
         if ($request->filled('status')) {

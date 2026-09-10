@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\Campaign;
+use App\Support\Campaigns\CampaignCoverPresentation;
 use App\Support\Campaigns\OfficialPaymentShare;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -33,6 +34,10 @@ class CampaignResource extends JsonResource
                     'status' => $this->currentVersion->status->value,
                 ];
             }),
+            'cover_image' => CampaignCoverPresentation::managed(
+                $this->resource,
+                CampaignCoverPresentation::ownerDownloadUrl((int) $this->id),
+            ),
             'listing_starts_at' => $this->listing_starts_at?->toIso8601String(),
             'listing_expires_at' => $this->listing_expires_at?->toIso8601String(),
             'submitted_at' => $this->submitted_at?->toIso8601String(),

@@ -164,6 +164,74 @@ There is no admin approval workflow for individual files (campaign approval is s
 
 After a paid extension returns a campaign to `active`, existing files become ambassador-downloadable again without re-upload.
 
+## Campaign Cover Image (MH-BE-044)
+
+Primary **Campaign-level presentation image** (zero or one per Campaign). Separate from:
+
+- Campaign Version commercial terms (cover changes never create/alter versions, Deal snapshots, or commissions)
+- Campaign Marketing Resources (multi-file promotional collection)
+
+### Authoritative basis / product decisions
+
+- TAD §18 Campaign Media + ERD `CAMPAIGNS ||--o{ CAMPAIGN_MEDIA` place media on the Campaign, not Version
+- UX discovery cards do not list a cover as a required text field; Product direction (this task) adds an optional primary visual for cards/detail/Featured
+- Ambiguity: foundational docs do not fully specify a dedicated Cover distinct from marketing resources — Cover is a first-class presentation asset so Marketing Resources semantics stay unchanged
+
+### Data model
+
+Table `campaign_covers`: `campaign_id` **UNIQUE**, `uploaded_by`, `disk`, `path`, `original_filename`, `mime_type`, `size_bytes`, timestamps. FK `campaign_id` / `uploaded_by` `restrictOnDelete`.
+
+### Storage
+
+Reuses private disk `campaign_media` (`CAMPAIGN_MEDIA_DISK`). Keys:
+
+```text
+campaigns/{campaignId}/cover/{uuid}.{ext}
+```
+
+No public object URLs. API never returns `disk` / `path`.
+
+### Formats & size
+
+Raster only: `jpeg`, `jpg`, `png`, `webp` (no SVG/GIF/TIFF). Max size reuses `CAMPAIGN_RESOURCE_MAX_FILE_KB` (default 20480) — no separate cover limit.
+
+### Lifecycle
+
+Same smallest safe rule as marketing resources: BUSINESS owner may create/replace/delete in **any** Campaign status. Cover mutation does not change Campaign status or Version. Not defined as version-gated in foundational docs.
+
+### Public delivery
+
+Controlled stream (not direct storage):
+
+```http
+GET /api/v1/marketplace/campaigns/{id}/cover
+```
+
+Public, unauthenticated. Allowed only when the Campaign is marketplace-discoverable **and** a cover exists; otherwise `404`. Marketplace list/detail expose:
+
+```json
+"cover_image": { "available": true, "url": "https://…/api/v1/marketplace/campaigns/{id}/cover" }
+```
+
+or `available: false`, `url: null`. Featured cards use the same Campaign Cover (no Featured-specific image copy).
+
+### Owner / Admin
+
+| Method | Path | Actor |
+| --- | --- | --- |
+| `POST` | `/api/v1/campaigns/{id}/cover` | BUSINESS owner (create or replace; `201` / `200`) |
+| `GET` | `/api/v1/campaigns/{id}/cover` | BUSINESS owner metadata |
+| `GET` | `/api/v1/campaigns/{id}/cover/download` | BUSINESS owner stream |
+| `DELETE` | `/api/v1/campaigns/{id}/cover` | BUSINESS owner |
+| `GET` | `/api/v1/admin/campaigns/{id}/cover` | ADMIN metadata |
+| `GET` | `/api/v1/admin/campaigns/{id}/cover/download` | ADMIN stream |
+
+Replacement: store new file → persist row → delete previous file. Validation failure leaves the existing cover intact.
+
+### Seed
+
+Deterministic seed is **unchanged** (no binary cover fixtures committed).
+
 ## Not implemented
 
 - Resume from `suspended`
@@ -172,3 +240,4 @@ After a paid extension returns a campaign to `active`, existing files become amb
 - Dedicated Featured carousel, hard inventory slots, or ML ranking
 - Featured expiry reminder notifications
 - Refund/credit for unused Featured time (out of MVP per MH-BE-028D)
+- Campaign cover galleries, cropping, AI moderation, CDN transforms, versioned cover snapshots

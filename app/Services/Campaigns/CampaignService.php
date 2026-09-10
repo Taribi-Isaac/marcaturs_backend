@@ -20,14 +20,14 @@ class CampaignService
     {
         $this->assertBusiness($user);
 
-        return $user->campaigns()->with(['category', 'currentVersion'])->orderByDesc('id')->get();
+        return $user->campaigns()->with(['category', 'currentVersion', 'cover'])->orderByDesc('id')->get();
     }
 
     public function show(User $user, Campaign $campaign): Campaign
     {
         $this->assertOwner($user, $campaign);
 
-        return $campaign->load(['category', 'currentVersion']);
+        return $campaign->load(['category', 'currentVersion', 'cover']);
     }
 
     /**
@@ -47,7 +47,7 @@ class CampaignService
         $campaign->is_featured = false;
         $campaign->save();
 
-        return $campaign->load(['category', 'currentVersion']);
+        return $campaign->load(['category', 'currentVersion', 'cover']);
     }
 
     /**
@@ -75,7 +75,7 @@ class CampaignService
 
         $campaign->save();
 
-        return $campaign->refresh()->load(['category', 'currentVersion']);
+        return $campaign->refresh()->load(['category', 'currentVersion', 'cover']);
     }
 
     private function assignableCategory(int $categoryId): Category
