@@ -1,4 +1,4 @@
-# Business–Ambassador chat (MH-BE-011E / MH-BE-013)
+# Business–Ambassador chat (MH-BE-011 / ENG-020; refined MH-BE-011E; realtime MH-BE-013)
 
 Conversations are **Business↔Ambassador communication relationships**. They are **not** Campaign-scoped and do **not** require a Campaign or Deal.
 
@@ -23,7 +23,9 @@ Campaign, Campaign Version, Deal, and Deal Event are independent domains. Chat i
 
 ## Participants, messages, report, admin
 
-Unchanged: participant IDOR (`404`), text messages, pagination, `POST .../read`, report once, ADMIN reported-only (REST).
+Participant IDOR → `404`. Text messages only (`type=text`, max chars via `CHAT_MESSAGE_MAX_CHARS`). Paginated history (`page` / `per_page`). `POST .../read` sets `read_at` on inbound messages. Report once (`POST .../report`). ADMIN may list/show reported conversations and their messages (REST only; access logged).
+
+Account access: same Sanctum + `account.access` as the rest of the API (restricted / suspended / banned cannot use chat beyond the platform’s existing restricted allow-list). Guests and wrong roles are rejected.
 
 ## Realtime (MH-BE-013)
 
@@ -49,6 +51,18 @@ Set `BROADCAST_CONNECTION=reverb` and the `REVERB_*` placeholders in `.env` (see
 
 Production WebSocket routing (ALB / CloudFront / process supervision) is **not** decided. Do not treat local Reverb as production topology.
 
-## Unresolved (not this slice)
+## Unresolved / deferred (not invented in this foundation)
 
-Create Deal from chat; Deal↔Conversation FKs; campaign UI filters; dispute vs chat report; retention; attachments; typing/presence; read-receipt broadcasts; admin live monitoring; frontend Echo; production WebSocket infrastructure.
+| Topic | Status |
+| --- | --- |
+| Create Deal / actionable commercial event cards from chat | Deferred (EDP Phase 4 §21; requires deliberate product design atop Deals) |
+| Deal↔Conversation / Campaign↔Conversation FKs | Not required for foundation; uniqueness is Business↔Ambassador pair |
+| Attachments | PRD “where appropriate” — not implemented (no chat attachment rules) |
+| Message edit / delete | Unspecified — not implemented |
+| Conversation lifecycle (close/archive/block) | Unspecified — not implemented beyond report |
+| Block participant semantics | Named in PRD only — not implemented |
+| New-message in-app/email notifications | Unspecified in UX notification lists — not implemented |
+| Typing / presence / read-receipt broadcasts | Optional in TAD — not implemented |
+| Admin live WebSocket monitoring | Not implemented |
+| Retention policy | Named class only — TBD |
+| Production WebSocket infrastructure | Pending |
