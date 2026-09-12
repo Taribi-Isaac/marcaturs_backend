@@ -128,10 +128,11 @@ npx newman run api-testing/MarcatursHub.postman_collection.json \
 - Authentication: Laravel Sanctum (session/cookie for the first-party web app, plus a bearer token on login/register for API clients). See [docs/API.md](docs/API.md).
 - Authorization: `auth:sanctum`, `account.access`, and `role:*` middleware plus Gates `admin`, `business`, `ambassador`.
 - MySQL is the system of record. Redis is configured for cache, queues, and shared sessions. Laravel Reverb is the local WebSocket process for chat delivery; it is not the message store.
-- Private files default to the `local` / `sensitive` / `campaign_media` disks. Verification evidence and Deal payment evidence use `sensitive`; campaign marketing files use `campaign_media` (`storage/app/private/campaign-media`). Neither is given a public URL. Production may point those disks at private S3 without changing the API.
+- Private files default to the `local` / `sensitive` / `campaign_media` disks. Verification evidence and Deal payment evidence use `sensitive`; campaign marketing files use `campaign_media` (`storage/app/private/campaign-media`). Neither is given a public URL. Staging/production may set `SENSITIVE_DISK_DRIVER=s3` and `CAMPAIGN_MEDIA_DISK_DRIVER=s3` (private buckets) without changing the API.
 - Domain modules listed in the TAD will be introduced when those features are built. Empty module shells were not added here.
 
 - Domain notes: [docs/verification.md](docs/verification.md), [docs/categories.md](docs/categories.md), [docs/campaigns.md](docs/campaigns.md), [docs/payments.md](docs/payments.md), [docs/chat.md](docs/chat.md), [docs/deals.md](docs/deals.md).
+- Staging deployment foundation (ENG-040A): [docs/deployment/staging.md](docs/deployment/staging.md).
 
 ## Authentication
 

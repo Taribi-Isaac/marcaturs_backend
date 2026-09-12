@@ -1,0 +1,102 @@
+# Optional local staging-parity stack (ENG-040A).
+# Requires Docker. Does NOT provision AWS. Secrets via .env.staging (never commit).
+#
+#   cp .env.staging.example .env.staging
+#   # fill secrets
+#   docker compose -f docker-compose.staging.yml --env-file .env.staging up --build
+
+name: marcaturshub-staging-local
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-marcaturshub_staging}
+      MYSQL_USER: ${DB_USERNAME:-marcaturs}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - staging_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: api
+    env_file: .env.staging
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      RUN_MIGRATIONS: "true"
+      APP_ENV: staging
+      APP_DEBUG: "false"
+    ports:
+      - "${STAGING_API_PORT:-18000}:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: worker
+    env_file: .env.staging
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      APP_ENV: staging
+      APP_DEBUG: "false"
+    depends_on:
+      - api
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: scheduler
+    env_file: .env.staging
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      APP_ENV: staging
+      APP_DEBUG: "false"
+    depends_on:
+      - api
+
+  reverb:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: reverb
+    env_file: .env.staging
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+      APP_ENV: staging
+      APP_DEBUG: "false"
+    ports:
+      - "${STAGING_REVERB_PORT:-18080}:8080"
+    depends_on:
+      - api
+
+volumes:
+  staging_mysql:

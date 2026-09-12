@@ -1,0 +1,76 @@
+name: Staging
+
+# ENG-040A — build/test/package. Deploy job is manual and requires AWS credentials
+# configured in GitHub Environments (staging). Does NOT deploy production.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+concurrency:
+  group: staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, pdo_sqlite, pdo_mysql, redis
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Style
+        run: vendor/bin/pint --test
+      - name: Run tests
+        run: php artisan test
+
+  build-images:
+    name: Build container images
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      matrix:
+        target: [api, worker, scheduler, reverb]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build ${{ matrix.target }} (no push without AWS)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: ${{ matrix.target }}
+          push: false
+          tags: marcaturshub-${{ matrix.target }}:staging-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy is intentionally gated. Wire AWS OIDC + ECR + ECS when account access exists.
+  deploy-staging:
+    name: Deploy staging (manual gate)
+    needs: [test, build-images]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Require AWS access
+        run: |
+          echo "::error::ENG-040A deploy requires AWS account access (ECR push + ECS update)."
+          echo "Configure GitHub Environment 'staging' with OIDC role and Secrets Manager values,"
+          echo "then replace this stub with: aws-actions/configure-aws-credentials, ECR login,"
+          echo "docker push, ecs update-service for api/worker/scheduler/reverb."
+          echo "See docs/deployment/staging.md"
+          exit 1
