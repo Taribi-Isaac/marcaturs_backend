@@ -4,11 +4,14 @@ namespace Tests\Feature\Campaigns;
 
 use App\Enums\CampaignStatus;
 use App\Enums\CampaignVersionStatus;
+use App\Enums\PlatformPaymentPurpose;
 use App\Enums\PlatformPaymentStatus;
 use App\Models\BusinessProfile;
 use App\Models\Campaign;
 use App\Models\CampaignExtension;
 use App\Models\CampaignExtensionPackage;
+use App\Models\CampaignFeaturedPackage;
+use App\Models\CampaignFeaturedPurchase;
 use App\Models\CampaignVersion;
 use App\Models\PlatformPayment;
 use App\Models\User;
@@ -276,6 +279,115 @@ class CampaignExtensionTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertSame(0, CampaignExtension::query()->count());
+    }
+
+    public function test_featured_payment_reference_cannot_activate_extension(): void
+    {
+        $this->fakePaystack(verifyAmount: 250000);
+        [$owner, $campaign, $extensionPackage] = $this->activeCampaignWithPackage();
+        $featuredPackage = CampaignFeaturedPackage::factory()->create([
+            'amount_minor' => 250000,
+            'duration_days' => 7,
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($owner);
+
+        $featuredReference = (string) $this->postJson('/api/v1/campaigns/'.$campaign->id.'/featured/initialize', [
+            'package_id' => $featuredPackage->id,
+        ])->assertCreated()->json('data.payment.reference');
+
+        $listingExpiry = $campaign->fresh()->listing_expires_at?->format('Y-m-d H:i:s');
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/extensions/verify', [
+            'reference' => $featuredReference,
+        ])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', ApiErrorCode::NOT_FOUND);
+
+        $this->assertSame(0, CampaignExtension::query()->count());
+        $this->assertSame($listingExpiry, $campaign->fresh()->listing_expires_at?->format('Y-m-d H:i:s'));
+        $this->assertSame(PlatformPaymentStatus::Pending, PlatformPayment::query()->where('reference', $featuredReference)->value('status'));
+        $this->assertSame(PlatformPaymentPurpose::CampaignFeatured, PlatformPayment::query()->where('reference', $featuredReference)->value('purpose'));
+        unset($extensionPackage);
+    }
+
+    public function test_certification_payment_reference_cannot_activate_extension(): void
+    {
+        $this->fakePaystack(verifyAmount: 1500000);
+        [$owner, $campaign] = $this->activeCampaignWithPackage();
+        Sanctum::actingAs($owner);
+
+        $certPayment = new PlatformPayment;
+        $certPayment->forceFill([
+            'user_id' => $owner->id,
+            'campaign_id' => $campaign->id,
+            'purpose' => PlatformPaymentPurpose::CertificationEnrollment,
+            'provider' => 'paystack',
+            'reference' => 'mh_cert_cross_purpose_ext',
+            'amount_minor' => 1500000,
+            'currency' => 'NGN',
+            'status' => PlatformPaymentStatus::Pending,
+        ])->save();
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/extensions/verify', [
+            'reference' => $certPayment->reference,
+        ])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', ApiErrorCode::NOT_FOUND);
+
+        $this->assertSame(0, CampaignExtension::query()->count());
+        $this->assertSame(PlatformPaymentStatus::Pending, $certPayment->fresh()->status);
+    }
+
+    public function test_extension_payment_reference_is_rejected_by_featured_verify(): void
+    {
+        $this->fakePaystack();
+        [$owner, $campaign, $package] = $this->activeCampaignWithPackage();
+        CampaignFeaturedPackage::factory()->create(['amount_minor' => 500000, 'is_active' => true]);
+        Sanctum::actingAs($owner);
+
+        $extensionReference = $this->initializeReference($campaign, $package);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/featured/verify', [
+            'reference' => $extensionReference,
+        ])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', ApiErrorCode::NOT_FOUND);
+
+        $this->assertSame(0, CampaignExtension::query()->count());
+        $this->assertSame(0, CampaignFeaturedPurchase::query()->count());
+        $this->assertSame(PlatformPaymentStatus::Pending, PlatformPayment::query()->where('reference', $extensionReference)->value('status'));
+    }
+
+    public function test_webhook_does_not_apply_extension_for_featured_purpose_record(): void
+    {
+        $this->fakePaystack(verifyAmount: 250000);
+        [$owner, $campaign] = $this->activeCampaignWithPackage();
+        $featuredPackage = CampaignFeaturedPackage::factory()->create([
+            'amount_minor' => 250000,
+            'duration_days' => 7,
+            'is_active' => true,
+        ]);
+        Sanctum::actingAs($owner);
+
+        $featuredReference = (string) $this->postJson('/api/v1/campaigns/'.$campaign->id.'/featured/initialize', [
+            'package_id' => $featuredPackage->id,
+        ])->assertCreated()->json('data.payment.reference');
+
+        $body = json_encode([
+            'event' => 'charge.success',
+            'data' => ['reference' => $featuredReference],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->call('POST', '/api/v1/webhooks/paystack', server: [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_PAYSTACK_SIGNATURE' => hash_hmac('sha512', $body, (string) config('paystack.secret_key')),
+        ], content: $body)->assertOk();
+
+        $this->assertSame(0, CampaignExtension::query()->count());
+        $this->assertSame(1, CampaignFeaturedPurchase::query()->count());
+        $this->assertTrue($campaign->fresh()->is_featured);
     }
 
     public function test_authorization_idor_and_account_status_rules(): void

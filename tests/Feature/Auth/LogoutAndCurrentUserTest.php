@@ -115,12 +115,16 @@ class LogoutAndCurrentUserTest extends TestCase
             ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
     }
 
-    public function test_suspended_sessions_cannot_use_the_api_except_logout(): void
+    public function test_suspended_sessions_can_read_me_but_not_other_routes(): void
     {
         $user = User::factory()->suspended()->create();
         Sanctum::actingAs($user);
 
         $this->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'suspended');
+
+        $this->getJson('/api/v1/conversations')
             ->assertStatus(403)
             ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
 

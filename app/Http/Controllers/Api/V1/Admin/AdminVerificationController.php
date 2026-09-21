@@ -40,7 +40,7 @@ class AdminVerificationController extends Controller
 
     public function storeRequirement(StoreVerificationRequirementRequest $request): JsonResponse
     {
-        $requirement = $this->requirements->create($request->validated());
+        $requirement = $this->requirements->create($request->user(), $request->validated());
 
         return ApiResponse::success(
             (new AdminVerificationRequirementResource($requirement))->resolve($request),
@@ -50,7 +50,7 @@ class AdminVerificationController extends Controller
 
     public function updateRequirement(UpdateVerificationRequirementRequest $request, VerificationRequirement $requirement): JsonResponse
     {
-        $updated = $this->requirements->update($requirement, $request->validated());
+        $updated = $this->requirements->update($request->user(), $requirement, $request->validated());
 
         return ApiResponse::success(
             (new AdminVerificationRequirementResource($updated))->resolve($request),

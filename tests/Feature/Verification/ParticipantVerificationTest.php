@@ -248,4 +248,70 @@ class ParticipantVerificationTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error.code', ApiErrorCode::CONFLICT);
     }
+
+    public function test_empty_active_requirements_return_not_started_without_error(): void
+    {
+        Sanctum::actingAs(User::factory()->ambassador()->create());
+
+        $this->getJson('/api/v1/verification/status')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.overall_status', OverallVerificationStatus::NotStarted->value)
+            ->assertJsonPath('data.requirements', [])
+            ->assertJsonMissingPath('error');
+
+        $this->getJson('/api/v1/verification/requirements')
+            ->assertOk()
+            ->assertJsonPath('data', []);
+    }
+
+    public function test_suspended_and_banned_users_cannot_access_verification(): void
+    {
+        Sanctum::actingAs(User::factory()->ambassador()->suspended()->create());
+        $this->getJson('/api/v1/verification/status')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN)
+            ->assertJsonPath('error.message', 'This account is not permitted to access the platform.');
+
+        Sanctum::actingAs(User::factory()->ambassador()->banned()->create());
+        $this->getJson('/api/v1/verification/requirements')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+    }
+
+    public function test_ambassador_cannot_submit_business_requirement(): void
+    {
+        $businessRequirement = VerificationRequirement::factory()->create();
+        $ambassador = User::factory()->ambassador()->create();
+        AmbassadorProfile::factory()->for($ambassador)->create();
+        Sanctum::actingAs($ambassador);
+
+        $this->postJson('/api/v1/verification/submissions', [
+            'requirement_id' => $businessRequirement->id,
+            'text_value' => 'Wrong role payload',
+        ])
+            ->assertStatus(404)
+            ->assertJsonPath('error.code', ApiErrorCode::NOT_FOUND)
+            ->assertJsonPath('error.message', 'The requested resource was not found.');
+    }
+
+    public function test_participant_cannot_read_another_users_submission_via_status(): void
+    {
+        $owner = User::factory()->business()->create();
+        BusinessProfile::factory()->for($owner)->create();
+        $requirement = VerificationRequirement::factory()->create();
+        VerificationSubmission::factory()
+            ->for($owner)
+            ->for($requirement, 'requirement')
+            ->create(['text_value' => 'Owner secret response']);
+
+        $other = User::factory()->business()->create();
+        Sanctum::actingAs($other);
+
+        $response = $this->getJson('/api/v1/verification/status')->assertOk();
+        $payload = json_encode($response->json());
+        $this->assertIsString($payload);
+        $this->assertStringNotContainsString('Owner secret response', $payload);
+        $this->assertNull(data_get($response->json(), 'data.requirements.0.submission'));
+    }
 }

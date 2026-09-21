@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Services\Notifications\CampaignFeaturedNotificationDispatcher;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
+use App\Support\Payments\ParticipantPaymentMessages;
+use App\Support\Payments\PaystackReturnUrl;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -108,22 +110,24 @@ class CampaignFeaturedService
         $secret = (string) config('paystack.secret_key');
 
         if ($secret === '') {
+            Log::warning('Featured purchase initialize blocked: platform payment provider is not configured');
+
             throw new HttpResponseException(ApiResponse::error(
                 ApiErrorCode::SERVICE_UNAVAILABLE,
-                'Platform payments are not configured.',
+                ParticipantPaymentMessages::TEMPORARILY_UNAVAILABLE,
                 503,
             ));
         }
 
         $reference = 'mh_feat_'.strtolower((string) Str::ulid());
-        $callback = config('paystack.callback_url');
+        $callback = PaystackReturnUrl::businessCampaign($campaign->id);
 
         $initialization = $this->gateway->initialize(
             $user->email,
             $package->amount_minor,
             $package->currency,
             $reference,
-            is_string($callback) && $callback !== '' ? $callback : null,
+            $callback,
             [
                 'purpose' => PlatformPaymentPurpose::CampaignFeatured->value,
                 'campaign_id' => $campaign->id,

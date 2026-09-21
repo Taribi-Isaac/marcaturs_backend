@@ -7,12 +7,12 @@ use App\Services\Payments\Data\PaymentInitialization;
 use App\Services\Payments\Data\PaymentVerification;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
+use App\Support\Payments\ParticipantPaymentMessages;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 use Throwable;
 
 class PaystackGateway implements PlatformPaymentGateway
@@ -128,7 +128,13 @@ class PaystackGateway implements PlatformPaymentGateway
         $secret = (string) config('paystack.secret_key');
 
         if ($secret === '') {
-            throw new RuntimeException('Paystack secret key is not configured.');
+            Log::warning('Paystack client blocked: secret key is not configured');
+
+            throw new HttpResponseException(ApiResponse::error(
+                ApiErrorCode::SERVICE_UNAVAILABLE,
+                ParticipantPaymentMessages::TEMPORARILY_UNAVAILABLE,
+                503,
+            ));
         }
 
         return Http::baseUrl((string) config('paystack.base_url'))

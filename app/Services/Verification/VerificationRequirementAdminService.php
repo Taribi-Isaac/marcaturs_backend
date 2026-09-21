@@ -2,18 +2,27 @@
 
 namespace App\Services\Verification;
 
+use App\Enums\AdminPermission;
 use App\Enums\Role;
 use App\Enums\VerificationRequirementType;
+use App\Models\User;
 use App\Models\VerificationRequirement;
+use App\Services\Admin\AdminAuthorization;
 use Illuminate\Auth\Access\AuthorizationException;
 
 class VerificationRequirementAdminService
 {
+    public function __construct(
+        private readonly AdminAuthorization $authorization,
+    ) {}
+
     /**
      * @param  array<string, mixed>  $attributes
      */
-    public function create(array $attributes): VerificationRequirement
+    public function create(User $admin, array $attributes): VerificationRequirement
     {
+        $this->authorization->assert($admin, AdminPermission::VerificationConfigure);
+
         $participant = Role::from((string) $attributes['participant_type']);
         $this->assertParticipant($participant);
 
@@ -32,8 +41,10 @@ class VerificationRequirementAdminService
     /**
      * @param  array<string, mixed>  $attributes
      */
-    public function update(VerificationRequirement $requirement, array $attributes): VerificationRequirement
+    public function update(User $admin, VerificationRequirement $requirement, array $attributes): VerificationRequirement
     {
+        $this->authorization->assert($admin, AdminPermission::VerificationConfigure);
+
         if (isset($attributes['participant_type'])) {
             $this->assertParticipant(Role::from((string) $attributes['participant_type']));
         }

@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\AccountStatus;
+use App\Enums\AdminStaffRole;
 use App\Enums\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -40,7 +41,23 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'role' => Role::Admin,
-        ]);
+        ])->afterCreating(function (User $user): void {
+            if (! $user->isAdmin() || $user->adminStaffProfile()->exists()) {
+                return;
+            }
+
+            $user->adminStaffProfile()->create([
+                'staff_role' => AdminStaffRole::SuperAdmin,
+                'created_by_user_id' => null,
+            ]);
+        });
+    }
+
+    public function adminStaff(AdminStaffRole $role): static
+    {
+        return $this->admin()->afterCreating(function (User $user) use ($role): void {
+            $user->adminStaffProfile()->update(['staff_role' => $role]);
+        });
     }
 
     public function business(): static

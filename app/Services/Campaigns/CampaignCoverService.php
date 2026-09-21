@@ -2,9 +2,11 @@
 
 namespace App\Services\Campaigns;
 
+use App\Enums\AdminPermission;
 use App\Models\Campaign;
 use App\Models\CampaignCover;
 use App\Models\User;
+use App\Services\Admin\AdminAuthorization;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -20,6 +22,7 @@ class CampaignCoverService
     public function __construct(
         private readonly CampaignCoverStore $files,
         private readonly CampaignDiscoveryService $discovery,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     public function showForOwner(User $user, Campaign $campaign): CampaignCover
@@ -31,7 +34,7 @@ class CampaignCoverService
 
     public function showForAdmin(User $admin, Campaign $campaign): CampaignCover
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsView);
 
         return $this->requireCover($campaign);
     }
@@ -101,7 +104,7 @@ class CampaignCoverService
 
     public function downloadForAdmin(User $admin, Campaign $campaign): StreamedResponse
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsView);
 
         return $this->files->stream($this->requireCover($campaign));
     }
@@ -141,13 +144,6 @@ class CampaignCoverService
     private function assertOwner(User $user, Campaign $campaign): void
     {
         if (! $user->isBusiness() || $campaign->user_id !== $user->id) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\V1;
 
 use App\Models\AmbassadorProfile;
+use App\Support\Certification\AmbassadorCertificationRepresentation;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -24,6 +25,8 @@ class AmbassadorProfileResource extends JsonResource
             'skills' => $this->skills ?? [],
             'marketing_interests' => $this->marketing_interests ?? [],
             'experience' => $this->experience,
+            // Computed from Awards — not editable profile state; distinct from verification.
+            'certification' => AmbassadorCertificationRepresentation::forUserId((int) $this->user_id),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

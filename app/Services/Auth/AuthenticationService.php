@@ -11,6 +11,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -92,12 +93,16 @@ class AuthenticationService
             $user->tokens()->delete();
         }
 
-        if ($request->hasSession()) {
-            $request->session()->regenerate();
-        }
+        // Do not regenerate the SPA session cookie here: concurrent authenticated
+        // requests would race on the old session id and surface as 401 → client logout.
     }
 
     /**
+     * Establish the current web session (when present) and issue a single auth PAT.
+     *
+     * MH-GATE-008 / MH-BE-047: revoke all existing PATs before creating the new token
+     * so login/register never accumulate authentication PATs.
+     *
      * @return array{user: User, token: string}
      */
     private function establishSession(User $user): array
@@ -107,13 +112,22 @@ class AuthenticationService
             request()->session()->regenerate();
         }
 
-        $user->forceFill([
-            'last_login_at' => now(),
-        ])->save();
+        $plainTextToken = DB::transaction(function () use ($user): string {
+            /** @var User $locked */
+            $locked = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            $locked->tokens()->delete();
+
+            $locked->forceFill([
+                'last_login_at' => now(),
+            ])->save();
+
+            return $locked->createToken('auth')->plainTextToken;
+        });
 
         return [
             'user' => $user->refresh(),
-            'token' => $user->createToken('auth')->plainTextToken,
+            'token' => $plainTextToken,
         ];
     }
 

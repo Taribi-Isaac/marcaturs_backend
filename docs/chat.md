@@ -17,9 +17,11 @@ Campaign, Campaign Version, Deal, and Deal Event are independent domains. Chat i
 | Actor | Body |
 | --- | --- |
 | BUSINESS | `{ "ambassador_id": 123 }` |
-| AMBASSADOR | `{ "business_id": 789 }` |
+| AMBASSADOR | `{ "business_id": 789 }` **or** `{ "campaign_id": 456 }` (XOR) |
 
-`campaign_id` is **prohibited** (`400`). **201** if created, **200** if the pair already exists. Concurrent opens cannot create a second row.
+Ambassadors may open via a **marketplace-discoverable** Campaign id. The API resolves the Campaign’s Business owner internally and creates/returns the normal Business↔Ambassador pair. Conversations remain **not** Campaign-scoped: `campaign_id` is not stored on the conversation row. Non-discoverable / unknown Campaign ids return `404`. Supplying both `business_id` and `campaign_id` returns `400`. Businesses still may not send `campaign_id`.
+
+**201** if created, **200** if the pair already exists. Concurrent opens cannot create a second row.
 
 ## Participants, messages, report, admin
 

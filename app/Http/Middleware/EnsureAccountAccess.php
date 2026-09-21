@@ -27,6 +27,7 @@ class EnsureAccountAccess
      * @var list<string>
      */
     private const BLOCKED_ALLOWED_ROUTES = [
+        'api.v1.auth.me',
         'api.v1.auth.logout',
     ];
 

@@ -58,6 +58,22 @@ class PlatformPayment extends Model
     }
 
     /**
+     * @return BelongsTo<CertificationProgramme, $this>
+     */
+    public function certificationProgramme(): BelongsTo
+    {
+        return $this->belongsTo(CertificationProgramme::class, 'certification_programme_id');
+    }
+
+    /**
+     * @return BelongsTo<CertificationProgrammeVersion, $this>
+     */
+    public function certificationProgrammeVersion(): BelongsTo
+    {
+        return $this->belongsTo(CertificationProgrammeVersion::class, 'certification_programme_version_id');
+    }
+
+    /**
      * @return HasOne<CampaignExtension, $this>
      */
     public function campaignExtension(): HasOne
@@ -71,5 +87,13 @@ class PlatformPayment extends Model
     public function campaignFeaturedPurchase(): HasOne
     {
         return $this->hasOne(CampaignFeaturedPurchase::class);
+    }
+
+    /**
+     * @return HasOne<CertificationEnrollment, $this>
+     */
+    public function certificationEnrollment(): HasOne
+    {
+        return $this->hasOne(CertificationEnrollment::class);
     }
 }

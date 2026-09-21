@@ -2,6 +2,7 @@
 
 namespace App\Services\Disputes;
 
+use App\Enums\AdminPermission;
 use App\Enums\DisputeEventType;
 use App\Enums\DisputeStatus;
 use App\Models\Commission;
@@ -10,6 +11,7 @@ use App\Models\Dispute;
 use App\Models\DisputeAttachment;
 use App\Models\DisputeEvent;
 use App\Models\User;
+use App\Services\Admin\AdminAuthorization;
 use App\Services\Notifications\DisputeNotificationDispatcher;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
@@ -29,6 +31,7 @@ class DisputeService
         private readonly DisputeCategoryService $categories,
         private readonly DisputeAttachmentStore $attachments,
         private readonly DisputeNotificationDispatcher $notifications,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     /**
@@ -158,7 +161,7 @@ class DisputeService
      */
     public function startReview(User $admin, Dispute $dispute, array $attributes = []): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         return $this->transition(
             $admin,
@@ -178,7 +181,7 @@ class DisputeService
      */
     public function requestEvidence(User $admin, Dispute $dispute, array $attributes): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         $reason = trim((string) ($attributes['reason'] ?? ''));
         if ($reason === '') {
@@ -235,7 +238,7 @@ class DisputeService
      */
     public function resumeReview(User $admin, Dispute $dispute, array $attributes = []): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         return $this->transition(
             $admin,
@@ -255,7 +258,7 @@ class DisputeService
      */
     public function markDecisionPending(User $admin, Dispute $dispute, array $attributes = []): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         return $this->transition(
             $admin,
@@ -275,7 +278,7 @@ class DisputeService
      */
     public function resolve(User $admin, Dispute $dispute, array $attributes): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         $decisionNotes = trim((string) ($attributes['decision_notes'] ?? ''));
         $actionNotes = trim((string) ($attributes['action_notes'] ?? ''));
@@ -347,7 +350,7 @@ class DisputeService
      */
     public function close(User $admin, Dispute $dispute, array $attributes = []): Dispute
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::DisputesManage);
 
         return $this->transition(
             $admin,
@@ -580,13 +583,6 @@ class DisputeService
 
         if (! $dispute->isParty($user)) {
             throw new ModelNotFoundException;
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }
 

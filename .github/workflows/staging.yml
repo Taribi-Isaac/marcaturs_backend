@@ -1,10 +1,15 @@
 name: Staging
 
-# ENG-040A — build/test/package. Deploy job is manual and requires AWS credentials
-# configured in GitHub Environments (staging). Does NOT deploy production.
+# ENG-040 / MH-OPS-001 — test, build images, optional ECR/ECS deploy.
+# Deploy requires GitHub Environment "staging" + AWS OIDC. Fail-closed otherwise.
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Push images to ECR and update ECS (requires AWS)"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths-ignore:
@@ -14,6 +19,9 @@ on:
 concurrency:
   group: staging-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
 
 jobs:
   test:
@@ -47,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Build ${{ matrix.target }} (no push without AWS)
+      - name: Build ${{ matrix.target }} (local tag; push only on deploy)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -57,20 +65,83 @@ jobs:
           tags: marcaturshub-${{ matrix.target }}:staging-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          outputs: type=docker,dest=/tmp/marcaturshub-${{ matrix.target }}.tar
+      - name: Upload image tar
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.target }}
+          path: /tmp/marcaturshub-${{ matrix.target }}.tar
+          retention-days: 3
 
-  # Deploy is intentionally gated. Wire AWS OIDC + ECR + ECS when account access exists.
   deploy-staging:
-    name: Deploy staging (manual gate)
+    name: Deploy staging
     needs: [test, build-images]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: ubuntu-latest
     environment: staging
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Require AWS access
+      - uses: actions/checkout@v4
+
+      - name: Require AWS role configuration
+        env:
+          ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
         run: |
-          echo "::error::ENG-040A deploy requires AWS account access (ECR push + ECS update)."
-          echo "Configure GitHub Environment 'staging' with OIDC role and Secrets Manager values,"
-          echo "then replace this stub with: aws-actions/configure-aws-credentials, ECR login,"
-          echo "docker push, ecs update-service for api/worker/scheduler/reverb."
-          echo "See docs/deployment/staging.md"
-          exit 1
+          missing=0
+          if [ -z "$ROLE_ARN" ]; then echo "::error::Missing secrets.AWS_ROLE_ARN"; missing=1; fi
+          if [ -z "$ECR_REGISTRY" ]; then echo "::error::Missing vars.ECR_REGISTRY"; missing=1; fi
+          if [ -z "$ECS_CLUSTER" ]; then echo "::error::Missing vars.ECS_CLUSTER"; missing=1; fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Configure GitHub Environment 'staging' per docs/deployment/staging.md"
+            exit 1
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Download image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/images
+
+      - name: Push images and update ECS services
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          IMAGE_TAG: staging-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          PREFIX="${{ vars.ECS_SERVICE_PREFIX }}"
+          if [ -z "$PREFIX" ]; then
+            PREFIX="marcaturshub-staging"
+          fi
+          for target in api worker scheduler reverb; do
+            docker load -i "/tmp/images/image-${target}/marcaturshub-${target}.tar"
+            remote="${ECR_REGISTRY}/marcaturshub-${target}:${IMAGE_TAG}"
+            docker tag "marcaturshub-${target}:${IMAGE_TAG}" "$remote"
+            docker push "$remote"
+            service="${PREFIX}-${target}"
+            aws ecs update-service --cluster "$ECS_CLUSTER" --service "$service" --force-new-deployment
+          done
+
+      - name: Smoke health (optional URL)
+        env:
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          if [ -z "$STAGING_API_URL" ]; then
+            echo "vars.STAGING_API_URL not set — skip remote smoke (configure after DNS)."
+            exit 0
+          fi
+          chmod +x scripts/staging-smoke.sh
+          EXPECT_HSTS=1 ./scripts/staging-smoke.sh

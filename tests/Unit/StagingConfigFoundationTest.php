@@ -2,25 +2,30 @@
 
 namespace Tests\Unit;
 
+use App\Support\Security\ReverbAllowedOrigins;
 use Tests\TestCase;
 
 class StagingConfigFoundationTest extends TestCase
 {
-    public function test_reverb_allowed_origins_are_configurable(): void
+    public function test_reverb_allowed_origins_are_configurable_without_wildcard(): void
     {
-        config()->set('reverb.apps.apps', [[
-            'allowed_origins' => array_values(array_filter(array_map(
-                static fn (string $origin): string => trim($origin),
-                explode(',', 'https://app.staging.example.com, https://admin.staging.example.com'),
-            ))),
-        ]]);
-
-        $origins = config('reverb.apps.apps.0.allowed_origins');
+        $origins = ReverbAllowedOrigins::resolve(
+            'https://app.staging.example.com, https://admin.staging.example.com',
+            'staging',
+        );
 
         $this->assertSame([
-            'https://app.staging.example.com',
-            'https://admin.staging.example.com',
+            'app.staging.example.com',
+            'admin.staging.example.com',
         ], $origins);
+        $this->assertNotContains('*', $origins);
+    }
+
+    public function test_reverb_config_default_is_not_wildcard(): void
+    {
+        $origins = config('reverb.apps.apps.0.allowed_origins');
+
+        $this->assertIsArray($origins);
         $this->assertNotContains('*', $origins);
     }
 

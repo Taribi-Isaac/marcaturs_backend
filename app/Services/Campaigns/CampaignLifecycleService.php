@@ -2,18 +2,27 @@
 
 namespace App\Services\Campaigns;
 
+use App\Enums\AdminPermission;
+use App\Enums\CampaignAdminEventAction;
 use App\Enums\CampaignStatus;
 use App\Enums\CampaignVersionStatus;
 use App\Models\Campaign;
+use App\Models\CampaignAdminEvent;
 use App\Models\User;
+use App\Services\Admin\AdminAuthorization;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class CampaignLifecycleService
 {
+    public function __construct(
+        private readonly AdminAuthorization $authorization,
+    ) {}
+
     public function submit(User $user, Campaign $campaign): Campaign
     {
         $this->assertOwner($user, $campaign);
@@ -30,58 +39,106 @@ class CampaignLifecycleService
 
     public function approve(User $admin, Campaign $campaign): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
         $this->assertStatus($campaign, CampaignStatus::Submitted, 'Only submitted campaigns can be approved.');
         $this->assertReadyForMarketplace($campaign);
 
-        $campaign->status = CampaignStatus::Approved;
-        $campaign->approved_at = now();
-        $campaign->review_reason = null;
-        $campaign->save();
+        return DB::transaction(function () use ($admin, $campaign): Campaign {
+            $previous = $campaign->status;
+            $campaign->status = CampaignStatus::Approved;
+            $campaign->approved_at = now();
+            $campaign->review_reason = null;
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::Approved,
+                $previous,
+                $campaign->status,
+                null,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     public function reject(User $admin, Campaign $campaign, string $reason): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
         $this->assertStatus($campaign, CampaignStatus::Submitted, 'Only submitted campaigns can be rejected.');
 
-        $campaign->status = CampaignStatus::Draft;
-        $campaign->review_reason = $reason;
-        $campaign->save();
+        return DB::transaction(function () use ($admin, $campaign, $reason): Campaign {
+            $previous = $campaign->status;
+            $campaign->status = CampaignStatus::Draft;
+            $campaign->review_reason = $reason;
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::Rejected,
+                $previous,
+                $campaign->status,
+                $reason,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     public function requestModification(User $admin, Campaign $campaign, string $reason): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
         $this->assertStatus($campaign, CampaignStatus::Submitted, 'Only submitted campaigns can be returned for modification.');
 
-        $campaign->status = CampaignStatus::Draft;
-        $campaign->review_reason = $reason;
-        $campaign->save();
+        return DB::transaction(function () use ($admin, $campaign, $reason): Campaign {
+            $previous = $campaign->status;
+            $campaign->status = CampaignStatus::Draft;
+            $campaign->review_reason = $reason;
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::ModificationRequested,
+                $previous,
+                $campaign->status,
+                $reason,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     public function activate(User $admin, Campaign $campaign): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
         $this->assertStatus($campaign, CampaignStatus::Approved, 'Only approved campaigns can be activated.');
         $this->assertReadyForMarketplace($campaign);
 
-        $days = max(1, (int) config('campaigns.free_listing_days'));
-        $starts = now();
+        return DB::transaction(function () use ($admin, $campaign): Campaign {
+            $days = max(1, (int) config('campaigns.free_listing_days'));
+            $starts = now();
+            $previous = $campaign->status;
 
-        $campaign->status = CampaignStatus::Active;
-        $campaign->activated_at = $starts;
-        $campaign->listing_starts_at = $starts;
-        $campaign->listing_expires_at = $starts->copy()->addDays($days);
-        $campaign->save();
+            $campaign->status = CampaignStatus::Active;
+            $campaign->activated_at = $starts;
+            $campaign->listing_starts_at = $starts;
+            $campaign->listing_expires_at = $starts->copy()->addDays($days);
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::Activated,
+                $previous,
+                $campaign->status,
+                null,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     public function deactivate(User $user, Campaign $campaign): Campaign
@@ -105,7 +162,7 @@ class CampaignLifecycleService
 
     public function suspend(User $admin, Campaign $campaign, string $reason): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
 
         if (! in_array($campaign->status, [CampaignStatus::Active, CampaignStatus::Expiring], true)) {
             throw new HttpResponseException(ApiResponse::error(
@@ -115,17 +172,29 @@ class CampaignLifecycleService
             ));
         }
 
-        $campaign->status = CampaignStatus::Suspended;
-        $campaign->suspended_at = now();
-        $campaign->review_reason = $reason;
-        $campaign->save();
+        return DB::transaction(function () use ($admin, $campaign, $reason): Campaign {
+            $previous = $campaign->status;
+            $campaign->status = CampaignStatus::Suspended;
+            $campaign->suspended_at = now();
+            $campaign->review_reason = $reason;
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::Suspended,
+                $previous,
+                $campaign->status,
+                $reason,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     public function close(User $admin, Campaign $campaign, ?string $reason): Campaign
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsManage);
 
         $closable = [
             CampaignStatus::Submitted,
@@ -143,12 +212,24 @@ class CampaignLifecycleService
             ));
         }
 
-        $campaign->status = CampaignStatus::Closed;
-        $campaign->closed_at = now();
-        $campaign->review_reason = $reason;
-        $campaign->save();
+        return DB::transaction(function () use ($admin, $campaign, $reason): Campaign {
+            $previous = $campaign->status;
+            $campaign->status = CampaignStatus::Closed;
+            $campaign->closed_at = now();
+            $campaign->review_reason = $reason;
+            $campaign->save();
 
-        return $this->fresh($campaign);
+            $this->recordAdminEvent(
+                $admin,
+                $campaign,
+                CampaignAdminEventAction::Closed,
+                $previous,
+                $campaign->status,
+                $reason,
+            );
+
+            return $this->fresh($campaign);
+        });
     }
 
     /**
@@ -252,6 +333,24 @@ class CampaignLifecycleService
         return $campaign->load(['category', 'currentVersion', 'user', 'cover']);
     }
 
+    private function recordAdminEvent(
+        User $admin,
+        Campaign $campaign,
+        CampaignAdminEventAction $action,
+        CampaignStatus $previous,
+        CampaignStatus $next,
+        ?string $reason,
+    ): void {
+        $event = new CampaignAdminEvent;
+        $event->actor_user_id = $admin->id;
+        $event->campaign_id = $campaign->id;
+        $event->action = $action;
+        $event->previous_status = $previous;
+        $event->new_status = $next;
+        $event->reason = $reason;
+        $event->save();
+    }
+
     private function assertReadyForMarketplace(Campaign $campaign): void
     {
         $campaign->loadMissing(['currentVersion', 'category']);
@@ -289,13 +388,6 @@ class CampaignLifecycleService
     private function assertOwner(User $user, Campaign $campaign): void
     {
         if (! $user->isBusiness() || $campaign->user_id !== $user->id) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }

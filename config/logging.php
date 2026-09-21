@@ -93,6 +93,20 @@ return [
             'tap' => [ConfigureLogging::class],
         ],
 
+        /*
+         | Local / staging inspection of the log mail transport (MH-GATE-007).
+         | Set MAIL_LOG_CHANNEL=mh_mail when MAIL_MAILER=log so rendered messages
+         | land in storage/logs/mail.log after queue workers run.
+         | Channel key is mh_mail (not "mail") to avoid LogManager ambiguity.
+         */
+        'mh_mail' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/mail.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+            'tap' => [ConfigureLogging::class],
+        ],
+
         'monthly' => [
             'driver' => 'monthly',
             'path' => storage_path('logs/laravel.log'),

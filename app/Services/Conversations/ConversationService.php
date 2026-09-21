@@ -2,12 +2,15 @@
 
 namespace App\Services\Conversations;
 
+use App\Enums\AdminPermission;
 use App\Enums\MessageType;
 use App\Enums\Role;
+use App\Models\Campaign;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\Admin\AdminAuthorization;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -23,6 +26,7 @@ class ConversationService
 {
     public function __construct(
         private readonly MessageCreatedBroadcaster $messageCreatedBroadcaster,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     /**
@@ -146,7 +150,7 @@ class ConversationService
 
     public function listReportedForAdmin(User $admin, int $perPage): LengthAwarePaginator
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::ConversationsModerate);
 
         return Conversation::query()
             ->whereNotNull('reported_at')
@@ -158,7 +162,7 @@ class ConversationService
 
     public function showReportedForAdmin(User $admin, Conversation $conversation): Conversation
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::ConversationsModerate);
         $this->assertReported($conversation);
 
         Log::info('Reported conversation accessed', [
@@ -171,7 +175,7 @@ class ConversationService
 
     public function listReportedMessagesForAdmin(User $admin, Conversation $conversation, int $perPage): LengthAwarePaginator
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::ConversationsModerate);
         $this->assertReported($conversation);
 
         Log::info('Reported conversation messages accessed', [
@@ -190,6 +194,12 @@ class ConversationService
      */
     private function openAsAmbassador(User $ambassador, array $attributes): array
     {
+        if (array_key_exists('campaign_id', $attributes) && $attributes['campaign_id'] !== null) {
+            $business = $this->requireBusinessFromDiscoverableCampaign((int) $attributes['campaign_id']);
+
+            return $this->firstOrCreate($business, $ambassador);
+        }
+
         $business = $this->requireBusiness((int) $attributes['business_id']);
 
         return $this->firstOrCreate($business, $ambassador);
@@ -267,6 +277,25 @@ class ConversationService
         return $business;
     }
 
+    /**
+     * Resolve the Business owner from a marketplace-discoverable Campaign.
+     * Campaign is entry context only — conversations remain Business↔Ambassador pairs.
+     */
+    private function requireBusinessFromDiscoverableCampaign(int $campaignId): User
+    {
+        $campaign = Campaign::query()
+            ->discoverable()
+            ->with('user')
+            ->whereKey($campaignId)
+            ->first();
+
+        if ($campaign === null || $campaign->user === null || ! $campaign->user->isBusiness()) {
+            throw new ModelNotFoundException;
+        }
+
+        return $campaign->user;
+    }
+
     private function requireAmbassador(int $ambassadorId): User
     {
         $ambassador = User::query()
@@ -307,13 +336,6 @@ class ConversationService
 
         if (! $conversation->hasParticipant($user)) {
             throw new ModelNotFoundException;
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }
 

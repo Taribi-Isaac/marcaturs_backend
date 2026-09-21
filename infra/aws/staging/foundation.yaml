@@ -1,0 +1,166 @@
+# MarcatursHub staging foundation scaffold (ENG-040)
+#
+# This is a PARAMETERIZED starter for Ops — it does NOT invent domain names or
+# provision resources by itself. Apply only with AWS credentials and real hosts:
+#
+#   aws cloudformation deploy \
+#     --stack-name marcaturshub-staging-foundation \
+#     --template-file infra/aws/staging/foundation.yaml \
+#     --parameter-overrides \
+#       ProjectName=marcaturshub \
+#       EnvironmentName=staging \
+#       ApiHostName=api.YOUR_REAL_STAGING_DOMAIN \
+#       AppHostName=app.YOUR_REAL_STAGING_DOMAIN \
+#       AdminHostName=admin.YOUR_REAL_STAGING_DOMAIN \
+#       WsHostName=ws.YOUR_REAL_STAGING_DOMAIN \
+#     --capabilities CAPABILITY_NAMED_IAM
+#
+# HostName parameters have NO defaults — stack create fails if omitted.
+# Full ECS/ALB/RDS wiring may be extended by Ops; this scaffold creates the
+# private S3 buckets + ECR repositories required by the TAD staging topology.
+
+AWSTemplateFormatVersion: "2010-09-09"
+Description: MarcatursHub staging foundation (ECR + private S3) — ENG-040 scaffold
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: marcaturshub
+  EnvironmentName:
+    Type: String
+    Default: staging
+    AllowedValues: [staging]
+  ApiHostName:
+    Type: String
+    Description: Real staging API hostname (required; no invented default)
+    MinLength: 3
+  AppHostName:
+    Type: String
+    Description: Real staging participant SPA hostname
+    MinLength: 3
+  AdminHostName:
+    Type: String
+    Description: Real staging admin SPA hostname
+    MinLength: 3
+  WsHostName:
+    Type: String
+    Description: Real staging Reverb/WebSocket hostname
+    MinLength: 3
+
+Resources:
+  ApiRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-api"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+
+  WorkerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-worker"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+
+  SchedulerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-scheduler"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+
+  ReverbRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-reverb"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      EncryptionConfiguration:
+        EncryptionType: AES256
+
+  SensitiveBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${EnvironmentName}-sensitive-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  CampaignMediaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${EnvironmentName}-campaign-media-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  FrontendAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${EnvironmentName}-frontend-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  AdminAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-${EnvironmentName}-admin-${AWS::AccountId}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ApiRepositoryUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ApiRepository}"
+  WorkerRepositoryUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${WorkerRepository}"
+  SchedulerRepositoryUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${SchedulerRepository}"
+  ReverbRepositoryUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ReverbRepository}"
+  SensitiveBucketName:
+    Value: !Ref SensitiveBucket
+  CampaignMediaBucketName:
+    Value: !Ref CampaignMediaBucket
+  FrontendAssetsBucketName:
+    Value: !Ref FrontendAssetsBucket
+  AdminAssetsBucketName:
+    Value: !Ref AdminAssetsBucket
+  DocumentedHosts:
+    Description: Hosts supplied at deploy time (for DNS/ACM follow-up)
+    Value: !Sub "api=${ApiHostName};app=${AppHostName};admin=${AdminHostName};ws=${WsHostName}"

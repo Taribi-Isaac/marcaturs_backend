@@ -44,13 +44,13 @@ return [
     | Expiration Minutes
     |--------------------------------------------------------------------------
     |
-    | This value controls the number of minutes until an issued token will be
-    | considered expired. This will override any values set in the token's
-    | "expires_at" attribute, but first-party sessions are not affected.
+    | Number of minutes until a personal access token is considered expired.
+    | MH-GATE-008 / MH-BE-047: authentication PATs expire after 7 days.
+    | First-party SPA cookie sessions are not affected by this value.
     |
     */
 
-    'expiration' => null,
+    'expiration' => (int) env('SANCTUM_TOKEN_EXPIRATION_MINUTES', 60 * 24 * 7),
 
     /*
     |--------------------------------------------------------------------------

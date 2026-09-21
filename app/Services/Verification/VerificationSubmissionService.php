@@ -2,6 +2,7 @@
 
 namespace App\Services\Verification;
 
+use App\Enums\AdminPermission;
 use App\Enums\Role;
 use App\Enums\VerificationRequirementType;
 use App\Enums\VerificationReviewAction;
@@ -11,6 +12,7 @@ use App\Models\VerificationRequirement;
 use App\Models\VerificationReviewEvent;
 use App\Models\VerificationSubmission;
 use App\Models\VerificationSubmissionVersion;
+use App\Services\Admin\AdminAuthorization;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -23,6 +25,7 @@ class VerificationSubmissionService
 {
     public function __construct(
         private readonly VerificationEvidenceStore $evidence,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     public function submit(User $user, int $requirementId, ?string $textValue, ?UploadedFile $file): VerificationSubmission
@@ -129,7 +132,7 @@ class VerificationSubmissionService
 
     public function startReview(User $admin, VerificationSubmission $submission): VerificationSubmission
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::VerificationReview);
 
         if ($submission->status !== VerificationSubmissionStatus::Pending) {
             throw new HttpResponseException(ApiResponse::error(
@@ -193,7 +196,7 @@ class VerificationSubmissionService
         ?string $reason,
         ?string $notes,
     ): VerificationSubmission {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::VerificationReview);
 
         if (! $submission->status->allowsReview()) {
             throw new HttpResponseException(ApiResponse::error(
@@ -275,13 +278,6 @@ class VerificationSubmissionService
     private function assertParticipant(User $user): void
     {
         if (! $user->isBusiness() && ! $user->isAmbassador()) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }

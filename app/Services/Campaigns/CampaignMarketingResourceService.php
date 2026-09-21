@@ -2,9 +2,11 @@
 
 namespace App\Services\Campaigns;
 
+use App\Enums\AdminPermission;
 use App\Models\Campaign;
 use App\Models\CampaignMarketingResource;
 use App\Models\User;
+use App\Services\Admin\AdminAuthorization;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -19,6 +21,7 @@ class CampaignMarketingResourceService
     public function __construct(
         private readonly CampaignMarketingResourceStore $files,
         private readonly CampaignDiscoveryService $discovery,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     /**
@@ -36,7 +39,7 @@ class CampaignMarketingResourceService
      */
     public function listForAdmin(User $admin, Campaign $campaign): Collection
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsView);
 
         return $this->withCampaign($campaign, $campaign->marketingResources()->get());
     }
@@ -134,7 +137,7 @@ class CampaignMarketingResourceService
 
     public function downloadForAdmin(User $admin, Campaign $campaign, CampaignMarketingResource $resource): StreamedResponse
     {
-        $this->assertAdmin($admin);
+        $this->authorization->assert($admin, AdminPermission::CampaignsView);
         $this->assertBelongs($campaign, $resource);
 
         return $this->files->stream($resource);
@@ -184,13 +187,6 @@ class CampaignMarketingResourceService
     private function assertOwner(User $user, Campaign $campaign): void
     {
         if (! $user->isBusiness() || $campaign->user_id !== $user->id) {
-            throw new AuthorizationException('You are not authorized to perform this action.');
-        }
-    }
-
-    private function assertAdmin(User $user): void
-    {
-        if (! $user->isAdmin()) {
             throw new AuthorizationException('You are not authorized to perform this action.');
         }
     }

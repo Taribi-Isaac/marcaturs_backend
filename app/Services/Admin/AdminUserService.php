@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Enums\AccountStatus;
+use App\Enums\AdminPermission;
 use App\Enums\CommissionStatus;
 use App\Enums\DisputeStatus;
 use App\Enums\Role;
@@ -25,17 +26,21 @@ class AdminUserService
 {
     public function __construct(
         private readonly VerificationStatusCalculator $verification,
+        private readonly AdminAuthorization $authorization,
     ) {}
 
     /**
      * @return LengthAwarePaginator<int, User>
      */
     public function list(
+        User $actor,
         ?Role $role,
         ?AccountStatus $status,
         ?string $search,
         int $perPage,
     ): LengthAwarePaginator {
+        $this->authorization->assert($actor, AdminPermission::UsersView);
+
         $query = $this->participantQuery()
             ->with(['businessProfile', 'ambassadorProfile'])
             ->orderByDesc('id');
@@ -58,8 +63,10 @@ class AdminUserService
         return $paginator;
     }
 
-    public function show(int $userId): User
+    public function show(User $actor, int $userId): User
     {
+        $this->authorization->assert($actor, AdminPermission::UsersView);
+
         $user = $this->findParticipantOrFail($userId);
         $user->load(['businessProfile', 'ambassadorProfile', 'verificationSubmissions.requirement']);
         $this->attachDetailAggregates($user);
@@ -89,6 +96,8 @@ class AdminUserService
 
     private function mutate(User $actor, int $targetId, UserStatusAction $action, string $reason): User
     {
+        $this->authorization->assert($actor, AdminPermission::UsersManage);
+
         // ADMIN (including the acting Admin) is outside the Users domain — resolve as 404.
         $target = $this->findParticipantOrFail($targetId);
 

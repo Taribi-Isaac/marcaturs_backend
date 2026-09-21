@@ -35,6 +35,12 @@ enum NotificationType: string
 
     case CampaignFeaturedPurchased = 'campaign_featured_purchased';
 
+    case CertificationEnrollmentActivated = 'certification_enrollment_activated';
+
+    case CertificationCertificateAvailable = 'certification_certificate_available';
+
+    case CertificationAssessmentResult = 'certification_assessment_result';
+
     case AccountStatusChanged = 'account_status_changed';
 
     public function isBusinessPaymentPressureReminder(): bool

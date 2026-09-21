@@ -139,7 +139,7 @@ Public registration accepts only `BUSINESS` or `AMBASSADOR`. Sending `role=ADMIN
 }
 ```
 
-Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`. Registration issues a Sanctum token immediately and sends an email-verification notification. Email verification is **not** a mandatory product-access gate in MVP: unverified users may authenticate and use APIs subject to role and account-status rules. `email_verified_at` is exposed on user payloads so clients can prompt verification.
+Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`. Registration issues a Sanctum token immediately and sends an email-verification notification. **MH-GATE-006:** email verification is a mandatory product-access gate for BUSINESS and AMBASSADOR accounts. Unverified participants may authenticate (`/auth/me`, logout, change-password, resend verification) but other authenticated product APIs return `403` with a verify-email message. Admin staff are exempt. `email_verified_at` remains on user payloads. Email verification is **not** participant Verification, Certification, or reputation.
 
 ### Login
 
@@ -150,7 +150,7 @@ Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are nev
 }
 ```
 
-Unknown email and wrong password both return `401` with `error.code=unauthenticated` and the same message (`Invalid credentials.`). Suspended or banned accounts return `403`. Restricted accounts may log in. Email verification is not required to log in.
+Unknown email and wrong password both return `401` with `error.code=unauthenticated` and the same message (`Invalid credentials.`). Suspended or banned accounts return `403`. Restricted accounts may log in. Email verification is not required to **log in**, but unverified BUSINESS/AMBASSADOR users cannot use product APIs until `email_verified_at` is set (middleware `email.verified`).
 
 ### Password reset
 
@@ -175,13 +175,17 @@ Always returns `200` with the same message whether or not the email is registere
 }
 ```
 
-On success: password is hashed, the reset token is invalidated, all Sanctum tokens for the user are revoked, and the user must log in again. Invalid/expired/reused tokens return `422` `business_validation` with a generic invalid-token message. Account status is unchanged (resetting a suspended account’s password does not restore login).
+On success: password is hashed, the reset token is invalidated, all Sanctum PATs for the user are revoked, rows in the `sessions` table for that user are deleted, and the user must log in again (no auto-login). Invalid/expired/reused tokens return `422` `business_validation` with a generic invalid-token message. Account status is unchanged (resetting a suspended account’s password does not restore login).
 
 ### Email verification
 
 Uses Laravel signed temporary URLs (`auth.verification.expire`, default 60 minutes). The verification email links to `GET /api/v1/auth/email/verify/{id}/{hash}?expires=…&signature=…`.
 
 Valid signature + matching email hash marks `email_verified_at`. Invalid/expired signatures return `403`. Already-verified links succeed idempotently. Hash is bound to the current email (email change invalidates old links).
+
+JSON clients (`Accept: application/json` / `getJson`) receive the success envelope. Browser navigations (non-JSON Accept) redirect to `FRONTEND_URL/login?email_verified=1` when `FRONTEND_URL` is set.
+
+Email verification is **implemented and sent on registration**. From MH-GATE-006, middleware `email.verified` blocks BUSINESS/AMBASSADOR product routes until `email_verified_at` is set. Allowed while unverified: `/auth/me`, logout, change-password, and resend verification. Existing seed/demo accounts are created **verified** (`UserFactory` default and DevelopmentScenarioSeeder). Accounts already in a database with `email_verified_at = null` will be gated until they verify — no fabricated timestamps are written by migration. Admin accounts are exempt. Participant Verification checklists remain a separate trust system.
 
 `POST /api/v1/auth/email/verification-notification` (authenticated) resends the verification email for the current user. Already-verified users receive a success payload with `already_verified: true` and no new mail. Restricted accounts may resend; suspended/banned accounts cannot (existing `account.access` policy). Rate-limited by `email-verification`.
 
@@ -209,6 +213,18 @@ Requires a correct `current_password`. New password uses `Password::defaults()` 
 
 Revokes all Sanctum personal access tokens for the user and invalidates the web session when present. Unauthenticated logout returns `401`. A second logout with the same token also returns `401`.
 
+**Token lifecycle (MH-GATE-008 / MH-BE-047):** See [authentication-token-policy.md](authentication-token-policy.md).
+
+- PAT lifetime: **7 days** (`SANCTUM_TOKEN_EXPIRATION_MINUTES`, default `10080`).
+- Login/register: revoke all prior PATs, then issue one `auth` PAT (no accumulation).
+- Password reset: revoke all PATs and delete the user’s rows in the `sessions` table.
+- Change password: keep current PAT/session; revoke other PATs.
+- No refresh tokens / JWT.
+
+### Login / registration tokens
+
+Successful login and registration continue to return `{ user, token, token_type: "Bearer" }`. The returned Bearer PAT is subject to the 7-day Sanctum expiration. First-party SPAs authenticate primarily via cookie session + CSRF; they must not rely on indefinite PAT reuse.
+
 ### Roles
 
 Stored on `users.role` as a PHP-backed string enum:
@@ -223,7 +239,7 @@ Reusable checks:
 - `Gate::allows('admin'|'business'|'ambassador')`
 - `User::isAdmin()` / `isBusiness()` / `isAmbassador()`
 
-The TAD also lists future staff roles (`SUPER_ADMIN`, `MODERATOR`, `SUPPORT`, `COMPLIANCE_REVIEWER`). Those are not implemented yet. `BUSINESS` maps to the TAD `BUSINESS_USER` actor.
+The TAD also lists future staff roles (`SUPER_ADMIN`, `MODERATOR`, `SUPPORT`, `COMPLIANCE_REVIEWER`). Platform staff remain `users.role = ADMIN`. Fine-grained Admin privileges are implemented as **Admin Staff profiles** (MH-BE-045): `SUPER_ADMIN`, `OPERATIONS`, `VERIFICATION`, `MODERATION`. See [admin-staff.md](admin-staff.md). `BUSINESS` maps to the TAD `BUSINESS_USER` actor.
 
 ### Account status
 
@@ -236,11 +252,146 @@ Stored on `users.status`:
 | `suspended` | No (`403`) | Blocked except `/logout` |
 | `banned` | No (`403`) | Blocked except `/logout` |
 
-Enforced by `account.access` middleware. Participant status is changed only through Admin Users discrete action endpoints (MH-BE-039); there is no free-form `PATCH` status API.
+Enforced by `account.access` middleware. Participant status is changed only through Admin Users discrete action endpoints (MH-BE-039); there is no free-form `PATCH` status API. Admin staff disable/restore uses the same status column via Admin Staff APIs (MH-BE-045).
+
+## Admin Staff (MH-BE-045)
+
+Individual Admin identities with role-derived permissions. `users.role` remains `ADMIN`.
+
+Auth: Sanctum + `account.access` + `role:ADMIN` + `permission:staff.view|staff.manage` as applicable.
+
+| Method | Path | Permission | Purpose |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/admin/staff` | `staff.view` | List Admin staff |
+| `GET` | `/api/v1/admin/staff/{user}` | `staff.view` | Staff detail + recent events |
+| `POST` | `/api/v1/admin/staff/invitations` | `staff.manage` | Invite staff |
+| `POST` | `/api/v1/admin/staff/invitations/{id}/revoke` | `staff.manage` | Revoke pending invite |
+| `PATCH` | `/api/v1/admin/staff/{user}` | `staff.manage` | Change `staff_role` |
+| `POST` | `/api/v1/admin/staff/{user}/disable` | `staff.manage` | Suspend staff |
+| `POST` | `/api/v1/admin/staff/{user}/restore` | `staff.manage` | Restore suspended staff |
+| `POST` | `/api/v1/admin/staff/direct` | `staff.manage` | Non-production direct create |
+| `POST` | `/api/v1/auth/staff-invitations/accept` | public | Accept invite + set password |
+
+`GET /auth/me` for ADMIN includes `staff_role` and `permissions[]`. Existing Admin route groups require the matching domain permission (see admin-staff.md).
+
+## Certification programmes (MH-BE-CERT-01)
+
+Optional Ambassador Professional Certification catalogue foundation. See [certification-programmes.md](certification-programmes.md).
+
+This slice does **not** implement enrollment, payment, curriculum, assessment, awards, or certificates.
+
+Admin (permission-gated):
+
+- `GET/POST /api/v1/admin/certification/programmes`
+- `GET/PATCH /api/v1/admin/certification/programmes/{programme}`
+- `GET/POST /api/v1/admin/certification/programmes/{programme}/versions`
+- `GET/PATCH /api/v1/admin/certification/programmes/{programme}/versions/{version_number}`
+- `POST .../versions/{version_number}/publish`
+- `POST .../versions/{version_number}/unpublish`
+
+Ambassador (published catalogue only):
+
+- `GET /api/v1/certification/programmes`
+- `GET /api/v1/certification/programmes/{programme}`
+
+Fee is server-authoritative on the current published version (`fee_amount_minor`). Pass mark is admin-only. No hard-coded launch fee or 70% default.
+
+### Curriculum (MH-BE-CERT-02)
+
+Version-bound modules → lessons → resources. Draft versions are mutable; published/unpublished curriculum is immutable. See [certification-programmes.md](certification-programmes.md).
+
+Admin curriculum routes live under:
+
+`/api/v1/admin/certification/programmes/{programme}/versions/{version}/modules/...`
+
+Ambassador curriculum **content** access is available for enrolled Ambassadors via MH-BE-CERT-04 (enrollment-bound curriculum/progress/Mark Complete). See [certification-programmes.md](certification-programmes.md).
+
+### Enrollment & purchase (MH-BE-CERT-03)
+
+- `POST /api/v1/certification/programmes/{programme}/purchase/initialize`
+- `POST /api/v1/certification/purchases/verify`
+- `GET /api/v1/certification/enrollments`
+- `GET /api/v1/certification/enrollments/{enrollment}`
+- `GET /api/v1/admin/certification/enrollments` (`certification.learners.view`)
+
+Purpose: `certification_enrollment` on `platform_payments`. See [certification-programmes.md](certification-programmes.md) and [payments.md](payments.md).
+
+### Learning progress (MH-BE-CERT-04)
+
+- `GET /api/v1/certification/enrollments/{enrollment}/curriculum`
+- `GET /api/v1/certification/enrollments/{enrollment}/progress`
+- `POST /api/v1/certification/enrollments/{enrollment}/lessons/{lesson}/complete`
+- `GET /api/v1/certification/enrollments/{enrollment}/lessons/{lesson}/resources/{resource}/download`
+
+Curriculum is bound to the enrollment's Programme Version. Assessment eligibility is derived from required lesson completion.
+
+### Final Assessment foundation (MH-BE-CERT-05)
+
+Admin (under programme version; draft-mutable):
+
+- `GET|POST|PATCH /api/v1/admin/certification/programmes/{programme}/versions/{version}/assessment`
+- `GET|POST /api/v1/admin/certification/programmes/{programme}/versions/{version}/assessment/questions`
+- `GET|PATCH|DELETE .../assessment/questions/{question}`
+- `POST .../assessment/questions/reorder`
+
+Learner:
+
+- `GET /api/v1/certification/enrollments/{enrollment}/assessment`
+
+Questions are version-bound. Learner payloads never include answer keys. See [certification-programmes.md](certification-programmes.md).
+
+### Assessment attempts & scoring (MH-BE-CERT-06)
+
+Learner:
+
+- `GET|POST /api/v1/certification/enrollments/{enrollment}/assessment/attempts`
+- `GET /api/v1/certification/enrollments/{enrollment}/assessment/attempts/{attempt}`
+- `POST /api/v1/certification/enrollments/{enrollment}/assessment/attempts/{attempt}/submit`
+
+Admin (`certification.learners.view`):
+
+- `GET /api/v1/admin/certification/enrollments/{enrollment}/assessment/attempts`
+- `GET /api/v1/admin/certification/enrollments/{enrollment}/assessment/attempts/{attempt}`
+
+Server-authoritative equal-weight scoring against the Programme Version pass mark snapshotted onto the attempt at start (MH-BE-048). See [certification-programmes.md](certification-programmes.md).
+
+### Certification Award (MH-BE-CERT-07)
+
+Learner:
+
+- `GET /api/v1/certification/awards`
+- `GET /api/v1/certification/awards/{award}`
+
+Admin (`certification.learners.view`):
+
+- `GET /api/v1/admin/certification/enrollments/{enrollment}/awards`
+- `GET /api/v1/admin/certification/awards/{award}`
+
+Award is created server-side on the first qualifying passing attempt (transactional with submit).
+
+### Certificate (MH-BE-CERT-08 / MH-BE-CERT-09)
+
+Learner:
+
+- `GET /api/v1/certification/certificates`
+- `GET /api/v1/certification/certificates/{certificate}`
+- `GET /api/v1/certification/certificates/{certificate}/download`
+
+Admin (`certification.learners.view`):
+
+- `GET /api/v1/admin/certification/enrollments/{enrollment}/certificates`
+- `GET /api/v1/admin/certification/certificates/{certificate}`
+- `GET /api/v1/admin/certification/certificates/{certificate}/download`
+
+Admin (`certification.manage`):
+
+- `POST /api/v1/admin/certification/certificates/{certificate}/artifact/retry`
+
+Certificate record is registered with the Award; PDF generation is asynchronous after commit. Download returns `409` while pending/failed. Public verification and QR remain deferred. See [certification-programmes.md](certification-programmes.md).
 
 ## Admin Users
 
-Admin Users (MH-BE-039) manages **BUSINESS** and **AMBASSADOR** accounts only. **ADMIN** staff accounts are never listed, shown, or mutated here (Administration/RBAC is deferred).
+Admin Users (MH-BE-039) manages **BUSINESS** and **AMBASSADOR** accounts only. **ADMIN** staff accounts are never listed, shown, or mutated here — use **Admin Staff** instead.
 
 Auth: Sanctum + `account.access` + `role:ADMIN`.
 
@@ -332,7 +483,17 @@ Not in this task: payment details, reputation, hard-coded NIN/CAC lists. Verific
 
 User-editable: `display_name` (required on create), `profile_description`, `location`, `skills` (string array), `marketing_interests` (string array), `experience`.
 
-Not in this task: profile image uploads, certification, achievements, reputation, campaign history.
+Read-only computed (MH-BE-CERT-10): `certification` object derived from Certification Awards (not a persisted profile flag):
+
+- `is_certified` — `true` when at least one Award with status `awarded` exists
+- `label` — `Certified MarcatursHub Ambassador` when certified; otherwise `null`
+- `awards[]` — `id`, `programme_id`, `programme_version_id`, historical `programme_name` / `programme_version_number` (Certificate snapshot preferred), `awarded_at`, optional `certificate_id`
+
+Certification is distinct from `verification_status` (identity verification). It does **not** change marketplace ranking, Featured logic, commissions, or Deal eligibility. Public marketplace discovery of certified ambassadors and public certificate verification remain deferred (FR-049 / Phase 2).
+
+`certificate_id` (when present) refers to the private Certificate record; clients use authenticated Certificate APIs — no public verification URL and no storage paths.
+
+Not in this task: profile image uploads, achievements, reputation, campaign history.
 
 Profile updates cannot change User `role` or `status`. Restricted/suspended/banned accounts follow MH-BE-002 `account.access` rules (restricted users cannot call profile or verification endpoints).
 
@@ -392,7 +553,7 @@ Role: `ADMIN`.
 | `GET` | `/api/v1/admin/verification/submissions/{id}/events` | Audit history |
 | `GET` | `/api/v1/admin/verification/submissions/{id}/evidence/{evidence}/download` | Authenticated private download |
 
-There is no public verification badge or directory in this task. An admin UI for requirement configuration is deferred; these APIs are the backend foundation.
+There is no public verification badge or directory in this task. Requirement configuration and submission review are available in Admin Control for staff with `verification.configure` / `verification.review` (in addition to these APIs).
 
 ### Security and compliance
 
@@ -561,7 +722,7 @@ Sending a message remains `POST /api/v1/conversations/{id}/messages` (`201`). Af
 | `GET` | `/api/v1/admin/conversations/{id}` | Sanctum | ADMIN | Reported conversation |
 | `GET` | `/api/v1/admin/conversations/{id}/messages` | Sanctum | ADMIN | Reported message history |
 
-Business body: `{ "ambassador_id": 2 }`. Ambassador body: `{ "business_id": 1 }`. `campaign_id` is rejected. Reopening returns `200`.
+Business body: `{ "ambassador_id": 2 }`. Ambassador body: `{ "business_id": 1 }` **or** `{ "campaign_id": 9 }` (XOR; discoverable Campaign resolves Business owner; conversation stays pair-scoped). Supplying both ids or a Business sending `campaign_id` is rejected (`400`). Non-discoverable Campaign → `404`. Reopening returns `200`.
 
 ## Deals
 
@@ -620,7 +781,7 @@ In-app notification foundation (MH-BE-022C). Notifications are persisted via Lar
 | `GET` | `/api/v1/notifications/{id}` | Sanctum | Owner | Show own notification |
 | `POST` | `/api/v1/notifications/{id}/read` | Sanctum | Owner | Mark notification as read (idempotent) |
 
-The notification API is scoped to the authenticated user's own notifications only. Cross-user access returns `404`. Restricted/suspended/banned accounts are blocked by the `account.access` middleware for API access. Transactional Commission reminders (MH-BE-022E) may still be *delivered* to suspended/banned recipients; delivery eligibility is separate from API access. Notification preferences, deletion, and mark-all-read remain deferred.
+The notification API is scoped to the authenticated user's own notifications only. Cross-user access returns `404`. Restricted/suspended/banned accounts are blocked by the `account.access` middleware for API access. Transactional Commission reminders (MH-BE-022E) and certification transactional mail (enrollment activated, assessment result, certificate available) may still be *delivered* to suspended/banned recipients; delivery eligibility is separate from API access. Notification preferences, deletion, and mark-all-read remain deferred.
 
 See [docs/categories.md](categories.md) and [docs/campaigns.md](campaigns.md).
 

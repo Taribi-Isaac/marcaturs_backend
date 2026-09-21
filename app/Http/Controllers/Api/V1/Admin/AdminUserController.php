@@ -29,6 +29,7 @@ class AdminUserController extends Controller
         $status = is_string($statusValue) ? AccountStatus::from($statusValue) : $statusValue;
 
         $paginator = $this->users->list(
+            $request->user(),
             $role,
             $status,
             $request->input('q'),
@@ -46,7 +47,7 @@ class AdminUserController extends Controller
     public function show(Request $request, int $user): JsonResponse
     {
         return ApiResponse::success(
-            (new AdminUserResource($this->users->show($user), true))->resolve($request),
+            (new AdminUserResource($this->users->show($request->user(), $user), true))->resolve($request),
         );
     }
 

@@ -16,6 +16,7 @@ use App\Services\Auth\EmailVerificationService;
 use App\Services\Auth\PasswordResetService;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -111,12 +112,20 @@ class AuthController extends Controller
         ]);
     }
 
-    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse
+    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse|RedirectResponse
     {
         /** @var User $user */
         $user = User::query()->findOrFail($id);
 
         $user = $this->emailVerification->verify($user, $hash);
+
+        if (! $request->expectsJson()) {
+            $frontend = rtrim((string) env('FRONTEND_URL', ''), '/');
+
+            if ($frontend !== '') {
+                return redirect()->away($frontend.'/login?email_verified=1');
+            }
+        }
 
         return ApiResponse::success([
             'message' => 'Email verified successfully.',

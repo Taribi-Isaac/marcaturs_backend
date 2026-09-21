@@ -3,7 +3,10 @@
 namespace Tests\Feature\Conversations;
 
 use App\Enums\AccountStatus;
+use App\Enums\CampaignStatus;
 use App\Models\BusinessProfile;
+use App\Models\Campaign;
+use App\Models\CampaignVersion;
 use App\Models\Conversation;
 use App\Models\User;
 use App\Support\Api\ApiErrorCode;
@@ -77,7 +80,7 @@ class BusinessAmbassadorChatTest extends TestCase
         $this->assertDatabaseCount('conversation_participants', 2);
     }
 
-    public function test_campaign_cannot_be_used_to_open_a_conversation(): void
+    public function test_campaign_cannot_be_used_by_business_to_open_a_conversation(): void
     {
         $business = User::factory()->business()->create();
         $ambassador = User::factory()->ambassador()->create();
@@ -88,15 +91,70 @@ class BusinessAmbassadorChatTest extends TestCase
             'campaign_id' => 1,
         ])->assertStatus(400)
             ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR);
+    }
 
+    public function test_ambassador_can_open_conversation_from_discoverable_campaign_without_business_id(): void
+    {
+        $business = User::factory()->business()->create();
+        BusinessProfile::factory()->for($business)->create();
+        $campaign = Campaign::factory()->for($business)->create([
+            'status' => CampaignStatus::Active,
+            'listing_starts_at' => now(),
+            'listing_expires_at' => now()->addDays(30),
+        ]);
+        $version = CampaignVersion::factory()->for($campaign)->published()->create();
+        $campaign->forceFill(['current_campaign_version_id' => $version->id])->save();
+
+        $ambassador = User::factory()->ambassador()->create();
         Sanctum::actingAs($ambassador);
+
         $this->postJson('/api/v1/conversations', [
-            'campaign_id' => 1,
-        ])->assertStatus(400);
+            'campaign_id' => $campaign->id,
+        ])->assertCreated()
+            ->assertJsonMissingPath('data.campaign')
+            ->assertJsonPath('data.counterpart.id', $business->id)
+            ->assertJsonPath('data.counterpart.role', 'BUSINESS');
+
+        $this->assertDatabaseHas('conversations', [
+            'business_user_id' => $business->id,
+            'ambassador_user_id' => $ambassador->id,
+        ]);
+        $this->assertFalse(Schema::hasColumn('conversations', 'campaign_id'));
+
+        $this->postJson('/api/v1/conversations', [
+            'campaign_id' => $campaign->id,
+        ])->assertOk();
+
+        $this->assertDatabaseCount('conversations', 1);
+    }
+
+    public function test_ambassador_cannot_supply_both_business_id_and_campaign_id(): void
+    {
+        $business = User::factory()->business()->create();
+        $ambassador = User::factory()->ambassador()->create();
+        Sanctum::actingAs($ambassador);
+
         $this->postJson('/api/v1/conversations', [
             'business_id' => $business->id,
             'campaign_id' => 1,
-        ])->assertStatus(400);
+        ])->assertStatus(400)
+            ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR);
+    }
+
+    public function test_ambassador_cannot_open_conversation_from_non_discoverable_campaign(): void
+    {
+        $business = User::factory()->business()->create();
+        BusinessProfile::factory()->for($business)->create();
+        $campaign = Campaign::factory()->for($business)->create([
+            'status' => CampaignStatus::Suspended,
+        ]);
+        $ambassador = User::factory()->ambassador()->create();
+        Sanctum::actingAs($ambassador);
+
+        $this->postJson('/api/v1/conversations', [
+            'campaign_id' => $campaign->id,
+        ])->assertStatus(404)
+            ->assertJsonPath('error.code', ApiErrorCode::NOT_FOUND);
     }
 
     public function test_participants_can_exchange_messages_and_mark_read(): void

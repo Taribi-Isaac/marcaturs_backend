@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Verification;
 
+use App\Enums\AdminStaffRole;
 use App\Enums\OverallVerificationStatus;
 use App\Enums\Role;
 use App\Enums\VerificationRequirementType;
@@ -206,5 +207,44 @@ class AdminVerificationTest extends TestCase
         $this->getJson('/api/v1/admin/verification/submissions')
             ->assertStatus(401)
             ->assertJsonPath('error.code', ApiErrorCode::UNAUTHENTICATED);
+    }
+
+    public function test_verification_staff_can_list_but_not_configure_requirements(): void
+    {
+        $staff = User::factory()->adminStaff(AdminStaffRole::Verification)->create();
+        VerificationRequirement::factory()->create(['name' => 'Visible requirement']);
+        Sanctum::actingAs($staff);
+
+        $this->getJson('/api/v1/admin/verification/requirements')
+            ->assertOk()
+            ->assertJsonPath('data.0.name', 'Visible requirement');
+
+        $this->postJson('/api/v1/admin/verification/requirements', [
+            'name' => 'Should fail',
+            'participant_type' => Role::Business->value,
+            'requirement_type' => VerificationRequirementType::Text->value,
+            'is_required' => true,
+            'sort_order' => 1,
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+    }
+
+    public function test_operations_staff_can_configure_requirements(): void
+    {
+        $ops = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
+        Sanctum::actingAs($ops);
+
+        $this->postJson('/api/v1/admin/verification/requirements', [
+            'name' => 'Ops configured check',
+            'participant_type' => Role::Ambassador->value,
+            'requirement_type' => VerificationRequirementType::Phone->value,
+            'is_required' => true,
+            'sort_order' => 5,
+            'description' => 'Enter a reachable phone number (not OTP).',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Ops configured check')
+            ->assertJsonPath('data.requirement_type', 'phone');
     }
 }

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password'])]
@@ -42,11 +43,29 @@ class User extends Authenticatable implements MustVerifyEmail
     public function sendEmailVerificationNotification(): void
     {
         $this->notify(new VerifyEmailNotification);
+
+        Log::info('transactional_mail.notification_dispatched', [
+            'event' => 'notification_dispatched',
+            'notification' => VerifyEmailNotification::class,
+            'notifiable_id' => $this->id,
+            'queued' => true,
+            'queue_connection' => (string) config('queue.default'),
+            'mailer' => (string) config('mail.default'),
+        ]);
     }
 
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
         $this->notify(new ResetPasswordNotification($token));
+
+        Log::info('transactional_mail.notification_dispatched', [
+            'event' => 'notification_dispatched',
+            'notification' => ResetPasswordNotification::class,
+            'notifiable_id' => $this->id,
+            'queued' => true,
+            'queue_connection' => (string) config('queue.default'),
+            'mailer' => (string) config('mail.default'),
+        ]);
     }
 
     public function hasRole(Role $role): bool
@@ -83,6 +102,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function ambassadorProfile(): HasOne
     {
         return $this->hasOne(AmbassadorProfile::class);
+    }
+
+    /**
+     * @return HasMany<CertificationAward, $this>
+     */
+    public function certificationAwards(): HasMany
+    {
+        return $this->hasMany(CertificationAward::class);
     }
 
     /**
@@ -147,5 +174,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function businessCommissions(): HasMany
     {
         return $this->hasMany(Commission::class, 'business_user_id');
+    }
+
+    /**
+     * @return HasOne<AdminStaffProfile, $this>
+     */
+    public function adminStaffProfile(): HasOne
+    {
+        return $this->hasOne(AdminStaffProfile::class);
+    }
+
+    /**
+     * @return HasMany<AdminStaffEvent, $this>
+     */
+    public function adminStaffEvents(): HasMany
+    {
+        return $this->hasMany(AdminStaffEvent::class, 'target_user_id')->orderBy('id');
     }
 }

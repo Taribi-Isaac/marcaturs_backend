@@ -13,6 +13,8 @@ use App\Models\PlatformPayment;
 use App\Models\User;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
+use App\Support\Payments\ParticipantPaymentMessages;
+use App\Support\Payments\PaystackReturnUrl;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -91,22 +93,24 @@ class CampaignExtensionService
         $secret = (string) config('paystack.secret_key');
 
         if ($secret === '') {
+            Log::warning('Extension purchase initialize blocked: platform payment provider is not configured');
+
             throw new HttpResponseException(ApiResponse::error(
                 ApiErrorCode::SERVICE_UNAVAILABLE,
-                'Platform payments are not configured.',
+                ParticipantPaymentMessages::TEMPORARILY_UNAVAILABLE,
                 503,
             ));
         }
 
         $reference = 'mh_ext_'.strtolower((string) Str::ulid());
-        $callback = config('paystack.callback_url');
+        $callback = PaystackReturnUrl::businessCampaign($campaign->id);
 
         $initialization = $this->gateway->initialize(
             $user->email,
             $package->amount_minor,
             $package->currency,
             $reference,
-            is_string($callback) && $callback !== '' ? $callback : null,
+            $callback,
             [
                 'purpose' => PlatformPaymentPurpose::CampaignExtension->value,
                 'campaign_id' => $campaign->id,
@@ -141,7 +145,12 @@ class CampaignExtensionService
 
         $payment = PlatformPayment::query()->where('reference', $reference)->first();
 
-        if ($payment === null || $payment->campaign_id !== $campaign->id || $payment->user_id !== $user->id) {
+        if (
+            $payment === null
+            || $payment->campaign_id !== $campaign->id
+            || $payment->user_id !== $user->id
+            || $payment->purpose !== PlatformPaymentPurpose::CampaignExtension
+        ) {
             throw new HttpResponseException(ApiResponse::error(
                 ApiErrorCode::NOT_FOUND,
                 'Payment reference was not found for this campaign.',
@@ -164,6 +173,10 @@ class CampaignExtensionService
 
             if ($payment === null) {
                 return ['error' => 'not_found'];
+            }
+
+            if ($payment->purpose !== PlatformPaymentPurpose::CampaignExtension) {
+                return ['error' => 'wrong_purpose'];
             }
 
             $existing = CampaignExtension::query()
@@ -229,7 +242,7 @@ class CampaignExtensionService
             return ['extension' => $extension->fresh()->load(['payment', 'campaign'])];
         });
 
-        if (($outcome['error'] ?? null) === 'not_found') {
+        if (($outcome['error'] ?? null) === 'not_found' || ($outcome['error'] ?? null) === 'wrong_purpose') {
             throw new HttpResponseException(ApiResponse::error(
                 ApiErrorCode::NOT_FOUND,
                 'Payment reference was not found.',
@@ -269,13 +282,17 @@ class CampaignExtensionService
         }
 
         if (in_array($event, ['charge.failed', 'charge.abandoned'], true)) {
-            DB::transaction(function () use ($reference): void {
+            DB::transaction(function () use ($reference, $event): void {
                 $payment = PlatformPayment::query()
                     ->where('reference', $reference)
                     ->lockForUpdate()
                     ->first();
 
-                if ($payment === null || $payment->status === PlatformPaymentStatus::Paid) {
+                if (
+                    $payment === null
+                    || $payment->purpose !== PlatformPaymentPurpose::CampaignExtension
+                    || $payment->status === PlatformPaymentStatus::Paid
+                ) {
                     return;
                 }
 

@@ -7,7 +7,9 @@ use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PasswordResetService
@@ -38,6 +40,7 @@ class PasswordResetService
                 ])->save();
 
                 $user->tokens()->delete();
+                $this->invalidateDatabaseSessions($user);
 
                 event(new PasswordReset($user));
             },
@@ -55,5 +58,17 @@ class PasswordResetService
         $user = User::query()->where('email', $email)->firstOrFail();
 
         return $user;
+    }
+
+    /**
+     * MH-GATE-008 / MH-BE-047: password reset must invalidate persisted browser sessions.
+     */
+    private function invalidateDatabaseSessions(User $user): void
+    {
+        if (! Schema::hasTable('sessions')) {
+            return;
+        }
+
+        DB::table('sessions')->where('user_id', $user->id)->delete();
     }
 }

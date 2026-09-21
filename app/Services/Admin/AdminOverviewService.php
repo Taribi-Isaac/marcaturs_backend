@@ -322,7 +322,7 @@ class AdminOverviewService
 
         return [
             'terminology' => 'successful_platform_payment_volume',
-            'boundary' => 'Business_to_MarcatursHub_for_campaign_extension_and_campaign_featured_only',
+            'boundary' => 'Business_or_Ambassador_to_MarcatursHub_for_platform_products',
             'success_definition' => 'platform_payments.status=paid',
             'all_time' => $this->platformPaymentWindow(null, null),
             'today' => $this->platformPaymentWindow($todayStart, $todayEnd),
@@ -376,6 +376,10 @@ class AdminOverviewService
                             'successful_amount_minor' => 0,
                         ],
                         PlatformPaymentPurpose::CampaignFeatured->value => [
+                            'successful_payment_count' => 0,
+                            'successful_amount_minor' => 0,
+                        ],
+                        PlatformPaymentPurpose::CertificationEnrollment->value => [
                             'successful_payment_count' => 0,
                             'successful_amount_minor' => 0,
                         ],

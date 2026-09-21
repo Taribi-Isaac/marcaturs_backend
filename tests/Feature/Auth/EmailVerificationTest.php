@@ -234,14 +234,32 @@ class EmailVerificationTest extends TestCase
             ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
     }
 
-    public function test_unverified_user_retains_authenticated_product_access(): void
+    public function test_unverified_user_can_read_me_but_not_product_routes(): void
     {
-        $user = User::factory()->unverified()->create();
+        $user = User::factory()->unverified()->ambassador()->create();
         Sanctum::actingAs($user);
 
         $this->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('data.email_verified_at', null);
+
+        $this->getJson('/api/v1/ambassadors/me')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN)
+            ->assertJsonPath('error.message', 'Please verify your email address to continue.');
+
+        $this->getJson('/api/v1/conversations')
+            ->assertStatus(403)
+            ->assertJsonPath('error.message', 'Please verify your email address to continue.');
+    }
+
+    public function test_verified_user_can_access_product_routes(): void
+    {
+        $user = User::factory()->ambassador()->create();
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/v1/conversations')
+            ->assertOk();
     }
 
     public function test_verification_for_another_user_id_requires_matching_signed_hash(): void
@@ -264,5 +282,24 @@ class EmailVerificationTest extends TestCase
 
         $this->assertNull($other->fresh()->email_verified_at);
         $this->assertNull($owner->fresh()->email_verified_at);
+    }
+
+    public function test_browser_verification_redirects_to_frontend_login(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $url = URL::temporarySignedRoute(
+            'api.v1.auth.email.verify',
+            now()->addMinutes(60),
+            [
+                'id' => $user->id,
+                'hash' => sha1($user->email),
+            ],
+        );
+
+        $this->get($url, ['Accept' => 'text/html'])
+            ->assertRedirect('http://localhost:3000/login?email_verified=1');
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
     }
 }

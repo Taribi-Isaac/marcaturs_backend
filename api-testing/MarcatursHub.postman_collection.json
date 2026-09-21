@@ -146,7 +146,7 @@
     },
     {
       "name": "Authentication",
-      "description": "Public registration is limited to BUSINESS and AMBASSADOR. There is no public Register Admin request.",
+      "description": "Public registration is limited to BUSINESS and AMBASSADOR. There is no public Register Admin request. MH-GATE-006: after register/login, BUSINESS/AMBASSADOR must verify email before product APIs (except /auth/me, logout, change-password, resend verification). Email verification ≠ participant Verification.",
       "item": [
         {
           "name": "Register Business",
@@ -493,7 +493,8 @@
                 "value": "Bearer {{token}}"
               }
             ],
-            "url": "{{baseUrl}}/api/v1/ambassadors/me"
+            "url": "{{baseUrl}}/api/v1/ambassadors/me",
+            "description": "Own Ambassador profile. Includes read-only certification block derived from Awards (is_certified, label 'Certified MarcatursHub Ambassador', awards summary). Not certified when only enrolled. Distinct from verification_status. No public certificate URL."
           }
         },
         {
@@ -1470,6 +1471,211 @@
       ]
     },
     {
+      "name": "Admin Staff",
+      "description": "MH-BE-045. Individual Admin staff with role-derived permissions. Requires SUPER_ADMIN for staff.manage.",
+      "item": [
+        {
+          "name": "List Staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/staff?per_page=15"
+          }
+        },
+        {
+          "name": "Show Staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/staff/{{staffUserId}}"
+          }
+        },
+        {
+          "name": "Invite Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Verifier One\",\n  \"email\": \"verifier.one@example.com\",\n  \"staff_role\": \"VERIFICATION\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/staff/invitations",
+            "description": "Non-production responses may include data.debug_token for local acceptance testing."
+          }
+        },
+        {
+          "name": "Revoke Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/staff/invitations/{{staffInvitationId}}/revoke"
+          }
+        },
+        {
+          "name": "Change Staff Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staff_role\": \"OPERATIONS\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/staff/{{staffUserId}}"
+          }
+        },
+        {
+          "name": "Disable Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Access no longer required\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/staff/{{staffUserId}}/disable"
+          }
+        },
+        {
+          "name": "Restore Staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Access restored\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/staff/{{staffUserId}}/restore"
+          }
+        },
+        {
+          "name": "Accept Staff Invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{staffInviteToken}}\",\n  \"password\": \"Password123!\",\n  \"password_confirmation\": \"Password123!\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/staff-invitations/accept"
+          }
+        },
+        {
+          "name": "Direct Create Staff (non-production)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Local Ops\",\n  \"email\": \"local.ops@example.com\",\n  \"password\": \"Password123!\",\n  \"staff_role\": \"OPERATIONS\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/staff/direct",
+            "description": "Blocked in production."
+          }
+        }
+      ]
+    },
+    {
       "name": "Admin Overview",
       "description": "MH-BE-043. Read-only operational snapshot for ADMIN. Successful platform payment volume is Business\u2192MarcatursHub only; commissions remain Business\u2192Ambassador obligations.",
       "item": [
@@ -2319,7 +2525,7 @@
     },
     {
       "name": "Conversations",
-      "description": "One Business\u2013Ambassador conversation per pair. Not campaign-scoped. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
+      "description": "One Business\u2013Ambassador conversation per pair. Not campaign-scoped. Ambassador may open with business_id or discoverable campaign_id (XOR; campaign resolves Business owner). Business opens with ambassador_id. Open returns 201 or 200. After persist, messages broadcast message.created on private conversation.{id}. Channel auth: POST /api/broadcasting/auth (Sanctum). Local: php artisan reverb:start. Production WebSocket/ALB is pending.",
       "item": [
         {
           "name": "List My Conversations",
@@ -2360,7 +2566,8 @@
               "mode": "raw",
               "raw": "{\n  \"business_id\": 1\n}"
             },
-            "url": "{{baseUrl}}/api/v1/conversations"
+            "url": "{{baseUrl}}/api/v1/conversations",
+            "description": "Ambassador: send business_id OR campaign_id (XOR). campaign_id must be marketplace-discoverable; conversation remains pair-scoped."
           }
         },
         {
@@ -3063,6 +3270,2362 @@
         }
       ],
       "description": "Dispute foundation (MH-BE-025D). Report Issue, party list/show, Admin investigation. No DealStatus disputed / financial mutation."
+    },
+    {
+      "name": "Certification",
+      "item": [
+        {
+          "name": "Admin",
+          "item": [
+            {
+              "name": "List Programmes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Programme",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ambassador Professional Certification\",\n  \"description\": \"Professional development programme.\",\n  \"learning_objectives\": \"Complete required training and assessment.\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Show Programme",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Programme",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"Updated description.\"\n}"
+                }
+              }
+            },
+            {
+              "name": "List Versions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Create Version",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fee_amount_minor\": 1500000,\n  \"fee_currency\": \"NGN\",\n  \"pass_mark_percent\": 75\n}"
+                }
+              }
+            },
+            {
+              "name": "Show Version",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Update Draft Version",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fee_amount_minor\": 1500000,\n  \"pass_mark_percent\": 75\n}"
+                }
+              }
+            },
+            {
+              "name": "Publish Version",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/publish",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "publish"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Unpublish Version",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/unpublish",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "unpublish"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Curriculum",
+              "item": [
+                {
+                  "name": "List Modules",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Create Module",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"title\": \"NON-PRODUCTION Module\",\n  \"description\": \"Synthetic only\"\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Show Module",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Update Module",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"title\": \"NON-PRODUCTION Module Updated\"\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Reorder Modules",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/reorder",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "reorder"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"module_ids\": [\n    1,\n    2\n  ]\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete Module",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "List Lessons",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Create Lesson",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"title\": \"NON-PRODUCTION Lesson\",\n  \"content_type\": \"text\",\n  \"is_required\": true\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Show Lesson",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Update Lesson",
+                  "request": {
+                    "method": "PATCH",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"is_required\": false\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Reorder Lessons",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/reorder",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "reorder"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"lesson_ids\": [\n    1,\n    2\n  ]\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete Lesson",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "List Resources",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Create Text Resource",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"type\": \"text\",\n  \"title\": \"NON-PRODUCTION Text\",\n  \"body_text\": \"Synthetic body only.\"\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Create External Resource",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"type\": \"external_reference\",\n  \"title\": \"NON-PRODUCTION External\",\n  \"external_url\": \"https://example.com/reference\"\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Create Downloadable Resource",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources"
+                      ]
+                    },
+                    "body": {
+                      "mode": "formdata",
+                      "formdata": [
+                        {
+                          "key": "type",
+                          "value": "downloadable",
+                          "type": "text"
+                        },
+                        {
+                          "key": "title",
+                          "value": "NON-PRODUCTION EXAMPLE PDF",
+                          "type": "text"
+                        },
+                        {
+                          "key": "file",
+                          "type": "file",
+                          "src": ""
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Show Resource",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources/{certification_resource_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources",
+                        "{certification_resource_id}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Download Resource",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources/{certification_resource_id}/download",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources",
+                        "{certification_resource_id}",
+                        "download"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Reorder Resources",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources/reorder",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources",
+                        "reorder"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"resource_ids\": [\n    1,\n    2\n  ]\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Delete Resource",
+                  "request": {
+                    "method": "DELETE",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/modules/{certification_module_id}/lessons/{certification_lesson_id}/resources/{certification_resource_id}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "programmes",
+                        "{{certification_programme_id}}",
+                        "versions",
+                        "{{certification_version_number}}",
+                        "modules",
+                        "{certification_module_id}",
+                        "lessons",
+                        "{certification_lesson_id}",
+                        "resources",
+                        "{certification_resource_id}"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Ambassador Catalogue",
+          "item": [
+            {
+              "name": "List Published Programmes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/programmes",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "programmes"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show Published Programme",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/programmes/{{certification_programme_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enrollment & Purchase",
+          "item": [
+            {
+              "name": "Initialize Purchase",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/programmes/{{certification_programme_id}}/purchase/initialize",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "purchase",
+                    "initialize"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Verify Purchase",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/purchases/verify",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "purchases",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"reference\": \"{{certification_payment_reference}}\"\n}"
+                }
+              }
+            },
+            {
+              "name": "List My Enrollments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show My Enrollment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Enrollment Curriculum",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/curriculum",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "curriculum"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Get Enrollment Progress",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/progress",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "progress"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Mark Lesson Complete",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/lessons/{{certification_lesson_id}}/complete",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "lessons",
+                    "{{certification_lesson_id}}",
+                    "complete"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Download Enrollment Lesson Resource",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/lessons/{{certification_lesson_id}}/resources/{{certification_resource_id}}/download",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "lessons",
+                    "{{certification_lesson_id}}",
+                    "resources",
+                    "{{certification_resource_id}}",
+                    "download"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin List Enrollments",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/enrollments",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "enrollments"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Show Enrollment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/enrollments/{{certification_enrollment_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Assessment",
+          "item": [
+            {
+              "name": "Admin Get Version Assessment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Create Version Assessment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"NON-PRODUCTION Final Assessment\",\n  \"instructions\": \"Synthetic instructions only.\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Admin Update Version Assessment",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"NON-PRODUCTION Final Assessment\",\n  \"instructions\": \"Updated synthetic instructions only.\"\n}"
+                }
+              }
+            },
+            {
+              "name": "Admin Create Assessment Question",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment/questions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment",
+                    "questions"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prompt\": \"NON-PRODUCTION EXAMPLE \u2014 Which option is correct?\",\n  \"type\": \"single_choice\",\n  \"options\": [\n    {\"label\": \"Option A\", \"is_correct\": false},\n    {\"label\": \"Option B\", \"is_correct\": true}\n  ]\n}"
+                }
+              }
+            },
+            {
+              "name": "Admin List Assessment Questions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment/questions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment",
+                    "questions"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Reorder Assessment Questions",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/programmes/{{certification_programme_id}}/versions/{{certification_version_number}}/assessment/questions/reorder",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "programmes",
+                    "{{certification_programme_id}}",
+                    "versions",
+                    "{{certification_version_number}}",
+                    "assessment",
+                    "questions",
+                    "reorder"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question_ids\": [{{certification_question_id}}]\n}"
+                }
+              }
+            },
+            {
+              "name": "Get My Enrollment Assessment",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/assessment",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "assessment"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Attempts",
+              "item": [
+                {
+                  "name": "Start Assessment Attempt",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "List My Assessment Attempts",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Show My Assessment Attempt",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts/{{certification_attempt_id}}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts",
+                        "{{certification_attempt_id}}"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Submit Assessment Attempt",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      },
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts/{{certification_attempt_id}}/submit",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts",
+                        "{{certification_attempt_id}}",
+                        "submit"
+                      ]
+                    },
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"answers\": [\n    {\"question_id\": 1, \"selected_option_id\": 2}\n  ]\n}"
+                    }
+                  }
+                },
+                {
+                  "name": "Admin List Enrollment Attempts",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "Admin Show Enrollment Attempt",
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Accept",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{token}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{base_url}}/api/v1/admin/certification/enrollments/{{certification_enrollment_id}}/assessment/attempts/{{certification_attempt_id}}",
+                      "host": [
+                        "{{base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "certification",
+                        "enrollments",
+                        "{{certification_enrollment_id}}",
+                        "assessment",
+                        "attempts",
+                        "{{certification_attempt_id}}"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Awards",
+          "item": [
+            {
+              "name": "List My Awards",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/awards",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "awards"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show My Award",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/awards/{{certification_award_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "awards",
+                    "{{certification_award_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin List Enrollment Awards",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/enrollments/{{certification_enrollment_id}}/awards",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "awards"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Show Award",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/awards/{{certification_award_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "awards",
+                    "{{certification_award_id}}"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Certificates",
+          "item": [
+            {
+              "name": "List My Certificates",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/certificates",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "certificates"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Show My Certificate",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/certificates/{{certification_certificate_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "certificates",
+                    "{{certification_certificate_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Download My Certificate",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/certification/certificates/{{certification_certificate_id}}/download",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "certification",
+                    "certificates",
+                    "{{certification_certificate_id}}",
+                    "download"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin List Enrollment Certificates",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/enrollments/{{certification_enrollment_id}}/certificates",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "enrollments",
+                    "{{certification_enrollment_id}}",
+                    "certificates"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Show Certificate",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/certificates/{{certification_certificate_id}}",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "certificates",
+                    "{{certification_certificate_id}}"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Download Certificate",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/certificates/{{certification_certificate_id}}/download",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "certificates",
+                    "{{certification_certificate_id}}",
+                    "download"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Admin Retry Certificate Artifact",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/api/v1/admin/certification/certificates/{{certification_certificate_id}}/artifact/retry",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "admin",
+                    "certification",
+                    "certificates",
+                    "{{certification_certificate_id}}",
+                    "artifact",
+                    "retry"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Administration",

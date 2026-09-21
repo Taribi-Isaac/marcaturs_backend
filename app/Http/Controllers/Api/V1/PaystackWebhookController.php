@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlatformPayment;
 use App\Services\Campaigns\CampaignExtensionService;
 use App\Services\Campaigns\CampaignFeaturedService;
+use App\Services\Certification\CertificationEnrollmentService;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -21,6 +22,7 @@ class PaystackWebhookController extends Controller
         private readonly PlatformPaymentGateway $gateway,
         private readonly CampaignExtensionService $extensions,
         private readonly CampaignFeaturedService $featured,
+        private readonly CertificationEnrollmentService $certificationEnrollments,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -76,6 +78,7 @@ class PaystackWebhookController extends Controller
         match ($payment->purpose) {
             PlatformPaymentPurpose::CampaignFeatured => $this->featured->handleWebhookEvent($event, $reference),
             PlatformPaymentPurpose::CampaignExtension => $this->extensions->handleWebhookEvent($event, $reference),
+            PlatformPaymentPurpose::CertificationEnrollment => $this->certificationEnrollments->handleWebhookEvent($event, $reference),
         };
     }
 }

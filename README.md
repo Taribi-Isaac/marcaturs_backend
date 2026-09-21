@@ -94,6 +94,18 @@ php artisan reverb:start
 
 Use `BROADCAST_CONNECTION=reverb` and the `REVERB_*` placeholders from `.env.example`. Redis is already required for cache/queues/sessions; this slice does not add Horizon or a chat-specific queue worker (broadcast runs after DB commit, synchronously). Production ALB/WebSocket topology is not configured in this repository.
 
+### Local transactional email (MH-GATE-007)
+
+Default local mailer is `MAIL_MAILER=log` with `MAIL_LOG_CHANNEL=mh_mail` → `storage/logs/mail.log`.
+
+All application notifications implement `ShouldQueue`. With `QUEUE_CONNECTION=redis` you **must** run a worker or messages never leave Redis:
+
+```bash
+php artisan queue:work
+```
+
+Then trigger resend verification or password reset and inspect `storage/logs/mail.log`. See [docs/transactional-email.md](docs/transactional-email.md) for the full inventory and the explanation of empty `laravel.log` when the worker is stopped.
+
 
 ## Tests
 
@@ -131,8 +143,9 @@ npx newman run api-testing/MarcatursHub.postman_collection.json \
 - Private files default to the `local` / `sensitive` / `campaign_media` disks. Verification evidence and Deal payment evidence use `sensitive`; campaign marketing files use `campaign_media` (`storage/app/private/campaign-media`). Neither is given a public URL. Staging/production may set `SENSITIVE_DISK_DRIVER=s3` and `CAMPAIGN_MEDIA_DISK_DRIVER=s3` (private buckets) without changing the API.
 - Domain modules listed in the TAD will be introduced when those features are built. Empty module shells were not added here.
 
-- Domain notes: [docs/verification.md](docs/verification.md), [docs/categories.md](docs/categories.md), [docs/campaigns.md](docs/campaigns.md), [docs/payments.md](docs/payments.md), [docs/chat.md](docs/chat.md), [docs/deals.md](docs/deals.md).
-- Staging deployment foundation (ENG-040A): [docs/deployment/staging.md](docs/deployment/staging.md).
+- Domain notes: [docs/verification.md](docs/verification.md), [docs/categories.md](docs/categories.md), [docs/campaigns.md](docs/campaigns.md), [docs/payments.md](docs/payments.md), [docs/chat.md](docs/chat.md), [docs/deals.md](docs/deals.md), [docs/transactional-email.md](docs/transactional-email.md).
+- Staging & production deployment foundation (ENG-040 / MH-OPS-001): [docs/deployment/README.md](docs/deployment/README.md).
+- Security headers & Reverb origins (MH-BE-050): [docs/security-headers-and-reverb-origins.md](docs/security-headers-and-reverb-origins.md).
 
 ## Authentication
 

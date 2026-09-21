@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\AccountStatus;
+use App\Enums\AdminStaffRole;
 use App\Enums\CampaignMarketingResourceType;
 use App\Enums\CampaignStatus;
 use App\Enums\CampaignVersionStatus;
@@ -25,6 +26,7 @@ use App\Enums\PricingMethod;
 use App\Enums\Role;
 use App\Enums\VerificationRequirementType;
 use App\Enums\VerificationSubmissionStatus;
+use App\Models\AdminStaffProfile;
 use App\Models\AmbassadorProfile;
 use App\Models\BusinessProfile;
 use App\Models\Campaign;
@@ -327,6 +329,22 @@ class DevelopmentScenarioSeeder extends Seeder
     {
         $this->users['admin.primary'] = $this->user('admin.primary', 'Primary Demo Admin', Role::Admin, AccountStatus::Active);
         $this->users['admin.ops'] = $this->user('admin.ops', 'Ops Demo Admin', Role::Admin, AccountStatus::Active);
+
+        AdminStaffProfile::query()->updateOrCreate(
+            ['user_id' => $this->users['admin.primary']->id],
+            [
+                'staff_role' => AdminStaffRole::SuperAdmin,
+                'created_by_user_id' => null,
+            ],
+        );
+
+        AdminStaffProfile::query()->updateOrCreate(
+            ['user_id' => $this->users['admin.ops']->id],
+            [
+                'staff_role' => AdminStaffRole::Operations,
+                'created_by_user_id' => null,
+            ],
+        );
 
         $businesses = [
             'business.solar' => ['Ada Solar Ventures Ltd', 'Ada Solar', 'demo-solar-energy', AccountStatus::Active, 'Lagos'],

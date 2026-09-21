@@ -22,6 +22,8 @@ class AmbassadorProfileTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.display_name', 'Chidi Promoter')
+            ->assertJsonPath('data.certification.is_certified', false)
+            ->assertJsonPath('data.certification.awards', [])
             ->assertJsonMissingPath('data.password')
             ->assertJsonMissingPath('data.certification_status')
             ->assertJsonMissingPath('data.verification_status');
@@ -29,7 +31,8 @@ class AmbassadorProfileTest extends TestCase
         $this->getJson('/api/v1/ambassadors/me')
             ->assertOk()
             ->assertJsonPath('data.location', 'Abuja')
-            ->assertJsonPath('data.skills.0', 'social-media');
+            ->assertJsonPath('data.skills.0', 'social-media')
+            ->assertJsonPath('data.certification.is_certified', false);
 
         $this->assertDatabaseHas('ambassador_profiles', [
             'user_id' => $user->id,

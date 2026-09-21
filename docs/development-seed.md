@@ -66,6 +66,14 @@ DemoPass123!
 - Chat: two Business↔Ambassador conversations with messages
 - Notifications: read/unread across commission, Featured, cancel, dispute types
 - Verification: not started / pending / under review / approved / rejected / more info
+- Verification requirements: Demo Business (legal name + registration evidence) and Demo Ambassador (legal name + identity evidence) are **active** after seed so normal UAT shows a configured checklist
+
+### Verification UAT notes
+
+- **Configured checklist:** login as `ambassador.ada@demo.marcaturshub.test` (or any active Ambassador) → Verification shows Demo requirements.
+- **Empty checklist:** Admin with `verification.configure` deactivates all active Ambassador (or Business) requirements → participant status remains `NOT_STARTED` with empty requirements and clear “not configured” copy (not an error). Reactivate Demo requirements before other UAT.
+- **Restricted:** `ambassador.restricted@demo.marcaturshub.test` / `business.edu@demo.marcaturshub.test` cannot call verification APIs (`403`).
+- **Email verification (MH-GATE-006):** new registrations must verify email before authenticated product access. Seeded demo users are created with `email_verified_at` set. Existing unverified rows are gated until they verify (no fabricated timestamps).
 
 ## Limitations
 
@@ -73,6 +81,7 @@ DemoPass123!
 - Platform payments are **Paid** development rows (not live Paystack charges).
 - Dispute categories come from `DisputeCategorySeeder` (also invoked by this scenario).
 - Does not create customer accounts, refunds, wallets, escrow, or certification data.
+- Does not create phone OTP / SMS verification challenges (`phone` requirements remain text submissions).
 - Reference clock for relative dates: `2026-09-07 12:00:00` during seed (then restored).
 
 ## Related

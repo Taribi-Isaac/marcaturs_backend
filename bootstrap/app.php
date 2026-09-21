@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountAccess;
+use App\Http\Middleware\EnsureAdminPermission;
+use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\SetSecurityHeaders;
 use App\Support\Api\ApiExceptionRenderer;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -22,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         __DIR__.'/../routes/channels.php',
         [
             'prefix' => 'api',
-            'middleware' => ['api', 'auth:sanctum', 'account.access'],
+            'middleware' => ['api', 'auth:sanctum', 'account.access', 'email.verified'],
         ],
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -32,9 +35,12 @@ return Application::configure(basePath: dirname(__DIR__))
         });
         $middleware->statefulApi();
         $middleware->throttleApi('api');
+        $middleware->append(SetSecurityHeaders::class);
         $middleware->alias([
             'account.access' => EnsureAccountAccess::class,
+            'email.verified' => EnsureEmailVerified::class,
             'role' => EnsureUserHasRole::class,
+            'permission' => EnsureAdminPermission::class,
         ]);
         $middleware->preventRequestsDuringMaintenance(except: [
             'api/v1/health',
