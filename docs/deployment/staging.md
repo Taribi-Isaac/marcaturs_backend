@@ -1,5 +1,7 @@
 # Staging environment bootstrap (ENG-040 / MH-OPS-001)
 
+> **MH-OPS-006 status — FUTURE.** The pilot deploys straight to production from `main` ([production.md](production.md)). Staging will be a later `develop` environment that **mirrors the production Lightsail model** with its own hosts, database, Redis, buckets, Resend key and Paystack test keys. The ECS/ECR/ALB/RDS/ElastiCache bootstrap below is retained only as the deferred future-scale path; do not follow it for the pilot.
+
 **Status:** In-repo deployment foundation is in place. **Live AWS staging is not provisioned** in this engineering environment (no AWS CLI, Docker, GitHub auth, or domain ownership). See [External access required](#external-access-required).
 
 ## Goals
@@ -26,8 +28,8 @@ Staging must support integrated UAT of:
 | `docker/entrypoint.sh` | Optional migrate + config/route/event cache |
 | `docker-compose.staging.yml` | Local parity stack (requires Docker) |
 | `.env.staging.example` | Staging env template (no secrets) |
-| `.github/workflows/staging.yml` | Test → build images → gated deploy |
-| `scripts/staging-smoke.sh` | Health + headers smoke |
+| `.github/workflows/staging.yml` | Deferred ECS path: test → build images → gated deploy (manual dispatch only) |
+| `scripts/smoke.sh` | Health + headers smoke |
 | `infra/aws/staging/` | CloudFormation scaffold (parameters only; apply with AWS access) |
 | `docs/deployment/*` | Runbooks |
 
@@ -44,7 +46,7 @@ Copy `.env.staging.example` into Secrets Manager / untracked `.env.staging`.
 | `REVERB_ALLOWED_ORIGINS` | Explicit FE origins (no `*`; empty = fail-closed) |
 | `PAYSTACK_*` | **Test** keys only |
 | `SENSITIVE_DISK_DRIVER` / `CAMPAIGN_MEDIA_DISK_DRIVER` | `s3` + private buckets |
-| `MAIL_MAILER` | Staging SMTP/SES (not `log` for email UAT) |
+| `MAIL_MAILER` | `resend` with a staging-only key (not `log` for email UAT) |
 | `SECURITY_HSTS_ENABLED` | `true` behind HTTPS |
 | `RUN_MIGRATIONS` | `true` only on controlled single release task |
 
@@ -86,10 +88,10 @@ See [frontend.md](frontend.md). Build with `.env.staging.example` templates unde
 ## Health / smoke
 
 ```bash
-STAGING_API_URL=https://<actual-staging-api-host> ./scripts/staging-smoke.sh
+API_URL=https://<actual-staging-api-host> ./scripts/smoke.sh
 ```
 
-Optional: `STAGING_APP_URL`, `STAGING_ADMIN_URL` for static shell checks.
+Optional: `APP_URL`, `ADMIN_URL`, `WS_URL` + `REVERB_APP_KEY` (the `STAGING_*` names are still accepted).
 
 ## Security checklist (staging)
 
@@ -117,7 +119,7 @@ To make staging **reachable**, Ops must provide:
 2. Real domain names for `api` / `app` / `admin` / `ws` staging hosts
 3. ACM certificates
 4. Paystack **test** keys
-5. Staging SMTP/SES identity
+5. Staging Resend API key + sending domain
 6. GitHub Environment `staging` with OIDC → AWS role
 7. Docker (CI runners or engineer machines for Compose parity)
 
@@ -138,7 +140,7 @@ This is **not** AWS staging. Docker was unavailable on the ENG-040 agent host.
 
 | Check | Method |
 | ----- | ------ |
-| Health + headers | `staging-smoke.sh` |
+| Health + headers | `scripts/smoke.sh` |
 | Auth | login/logout/`/me` Business, Ambassador, Admin |
 | Commerce | Campaign → Version → Marketplace → Deal → Evidence → Confirm → Commission (no real customer money) |
 | Cover / resources | upload + authorized download |
@@ -151,4 +153,4 @@ This is **not** AWS staging. Docker was unavailable on the ENG-040 agent host.
 
 ## Production
 
-See [production.md](production.md). **NOT READY** until this matrix is GREEN on live staging.
+See [production.md](production.md). Production no longer waits for staging (MH-OPS-006); it has its own verification gate in [production-checklist.md](production-checklist.md).

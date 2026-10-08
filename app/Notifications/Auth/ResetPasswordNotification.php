@@ -36,7 +36,7 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
             ? $notifiable->getEmailForPasswordReset()
             : (string) $notifiable->email;
 
-        $base = rtrim((string) env('FRONTEND_URL', ''), '/');
+        $base = rtrim((string) config('app.frontend_url', ''), '/');
         $url = $base.'/reset-password?'.http_build_query([
             'token' => $this->token,
             'email' => $email,

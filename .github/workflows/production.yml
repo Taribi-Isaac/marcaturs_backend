@@ -1,0 +1,165 @@
+name: Production
+
+# MH-OPS-006 — Lightsail production pipeline.
+#
+# push to main      → test + build release artifact (no deploy)
+# manual dispatch   → test + build → GitHub Environment "production" approval
+#                     → upload + release on Lightsail → smoke → automatic code rollback on failure
+#
+# `develop` never triggers this workflow. Deploys are only possible from `main`
+# and only after a required reviewer approves the "production" environment.
+#
+# Environment "production" must define:
+#   secrets: LIGHTSAIL_SSH_KEY, LIGHTSAIL_SSH_KNOWN_HOSTS
+#   vars:    LIGHTSAIL_HOST, LIGHTSAIL_USER, PRODUCTION_API_URL, PRODUCTION_APP_URL,
+#            PRODUCTION_ADMIN_URL, PRODUCTION_WS_URL, REVERB_APP_KEY (public)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy this main commit to production (requires environment approval)"
+        type: boolean
+        default: false
+      migrate:
+        description: "Run php artisan migrate --force during the release"
+        type: boolean
+        default: false
+      backup_confirmed:
+        description: "I confirmed a fresh database snapshot / restore point exists (required with migrate)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, pdo_sqlite, pdo_mysql, redis, bcmath, intl, zip
+          coverage: none
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Style
+        run: vendor/bin/pint --test
+      - name: Run tests
+        run: php artisan test
+
+  build:
+    name: Build release artifact
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.meta.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, pdo_mysql, redis, bcmath, intl, zip
+          coverage: none
+      - name: Install production dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      - name: Package
+        id: meta
+        run: |
+          set -euo pipefail
+          release_id="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::12}"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php bootstrap/cache/events.php
+          tar -czf release.tar.gz app bootstrap config database public resources routes vendor artisan composer.json composer.lock
+          ls -lh release.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-release
+          path: release.tar.gz
+          retention-days: 14
+
+  deploy:
+    name: Deploy to Lightsail
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migration gate
+        if: inputs.migrate && !inputs.backup_confirmed
+        run: |
+          echo "::error::Migrations requested without confirming a fresh database snapshot / restore point."
+          exit 1
+
+      - name: Require production configuration
+        env:
+          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.LIGHTSAIL_HOST }}
+          USER: ${{ vars.LIGHTSAIL_USER }}
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          missing=0
+          for name in SSH_KEY KNOWN_HOSTS HOST USER API_URL; do
+            if [ -z "${!name}" ]; then echo "::error::Missing $name in environment 'production'"; missing=1; fi
+          done
+          exit "$missing"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-release
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Release
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+          RELEASE_ID: ${{ needs.build.outputs.release_id }}
+          MIGRATE_FLAG: ${{ inputs.migrate && '--migrate' || '' }}
+        run: |
+          set -euo pipefail
+          ssh_cmd="ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes"
+          scp -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes release.tar.gz infra/lightsail/deploy.sh "$TARGET:/tmp/"
+          $ssh_cmd "$TARGET" "install -m 755 /tmp/deploy.sh /var/www/marcaturshub/bin/deploy.sh \
+            && /var/www/marcaturshub/bin/deploy.sh release /tmp/release.tar.gz '$RELEASE_ID' $MIGRATE_FLAG \
+            && rm -f /tmp/release.tar.gz /tmp/deploy.sh"
+
+      - name: Smoke
+        id: smoke
+        env:
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+          APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          ADMIN_URL: ${{ vars.PRODUCTION_ADMIN_URL }}
+          WS_URL: ${{ vars.PRODUCTION_WS_URL }}
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
+          EXPECT_HSTS: "1"
+        run: |
+          sleep 5
+          bash scripts/smoke.sh
+
+      - name: Roll back code on failed smoke
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$TARGET" "/var/www/marcaturshub/bin/deploy.sh rollback"
+          echo "::warning::Code rolled back. Database migrations (if any) were NOT reversed — see docs/deployment/rollback.md"

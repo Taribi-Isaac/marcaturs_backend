@@ -10,7 +10,7 @@ return [
     | Baseline response headers applied by SetSecurityHeaders middleware.
     | A full Content-Security-Policy is intentionally not set here — Vite,
     | Paystack, Reverb, and SPA asset hosts need an environment-specific CSP
-    | (prefer CloudFront / edge in staging/production).
+    | (prefer the Cloudflare edge in production).
     |
     | HSTS must not be enabled on plain HTTP localhost. Set
     | SECURITY_HSTS_ENABLED=true only behind HTTPS (staging/production).

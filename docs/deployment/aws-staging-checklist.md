@@ -1,6 +1,8 @@
 # AWS staging checklist (ENG-040)
 # Apply only after AWS account access exists. Prefer IaC under infra/aws/staging/.
 
+> **DEFERRED (MH-OPS-006).** This ECS/ECR/ALB/RDS/ElastiCache resource list is the future scale path. The pilot uses Lightsail — follow [production-checklist.md](production-checklist.md) instead.
+
 ## Network
 - [ ] VPC with public + private subnets
 - [ ] NAT for private ECS tasks
