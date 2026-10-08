@@ -35,7 +35,7 @@ Do not invent record values; copy them from Cloudflare Pages, Lightsail and Rese
 
 ### Lightsail instance
 - [ ] Ubuntu 24.04, 2 GB plan, `eu-north-1`; static IP attached
-- [ ] Firewall: 22 (operator IPs), 80, 443 only
+- [ ] Firewall: 80, 443, and 22 key-only (GitHub-hosted deploy runners need it; fail2ban + `AllowUsers ubuntu deploy`)
 - [ ] Automatic daily instance snapshots enabled
 - [ ] Host baseline per `production.md` §1 (PHP 8.4, Nginx, Redis, Supervisor, certbot), `deploy` user, sudoers entry, directory layout, swap
 - [ ] Unattended security upgrades enabled
@@ -57,7 +57,7 @@ Do not invent record values; copy them from Cloudflare Pages, Lightsail and Rese
 - [ ] IAM user `marcaturshub-prod-app` with only `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` on `arn:aws:s3:::<bucket>/*` and `s3:ListBucket` on both bucket ARNs; access key stored only in `shared/.env`
 
 ### TLS / edge
-- [ ] `certbot --nginx -d api.marcaturshub.com.ng -d ws.marcaturshub.com.ng`; renewal dry-run passes
+- [ ] `certbot certonly --webroot -w /var/www/letsencrypt -d api.marcaturshub.com.ng -d ws.marcaturshub.com.ng`; renewal dry-run passes
 - [ ] Cloudflare SSL mode "Full (strict)" for proxied hosts; "Always Use HTTPS" on; HSTS at the edge for `app`/`admin` once stable
 
 ### Cloudflare Pages

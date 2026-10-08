@@ -26,4 +26,20 @@ return [
         'hsts_max_age' => (int) env('SECURITY_HSTS_MAX_AGE', 31_536_000),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin origin binding (Option A)
+    |--------------------------------------------------------------------------
+    |
+    | Cookie-authenticated /api/v1/admin/* requests must carry one of these
+    | exact Origin values (EnsureAdminOrigin). Defaults to ADMIN_FRONTEND_URL.
+    | Empty in production rejects every cookie-authenticated Admin request.
+    |
+    */
+
+    'admin_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('ADMIN_ALLOWED_ORIGINS', env('ADMIN_FRONTEND_URL', ''))),
+    ))),
+
 ];

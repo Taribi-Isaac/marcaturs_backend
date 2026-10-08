@@ -11,11 +11,11 @@ Related: [architecture.md](architecture.md) · [production-environment.md](produ
 | Instance | Lightsail Linux, **2 GB RAM / 2 vCPU / 60 GB** (≈$12/month) in `eu-north-1`; 4 GB is the first upgrade step |
 | OS | Ubuntu 24.04 LTS |
 | Static IP | Attached (DNS for `api` and `ws` points here) |
-| Firewall (Lightsail) | 22 (operator IPs only), 80, 443. **Never** 6379, 3306, 8080 |
+| Firewall (Lightsail) | 80, 443, and 22 for the GitHub-hosted deploy runners (their IPs cannot be allow-listed). SSH is key-only, no root, `AllowUsers ubuntu deploy`, fail2ban on `sshd`; `deploy` may only `sudo` the two release commands. **Never** 6379, 3306, 8080 |
 | Swap | 1–2 GB emergency swap |
 | PHP | 8.4 from the `ondrej/php` PPA (Ubuntu 24.04 ships 8.3) |
 | PHP packages | `php8.4-fpm php8.4-cli php8.4-mysql php8.4-redis php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-bcmath php8.4-intl php8.4-opcache` |
-| Other packages | `nginx redis-server supervisor certbot python3-certbot-nginx mysql-client unzip` |
+| Other packages | `nginx redis-server supervisor certbot mysql-client unzip acl fail2ban` |
 | Composer / Node | Not needed on the host — CI builds `vendor/` and the SPAs |
 
 ### Users and layout
@@ -50,7 +50,7 @@ deploy ALL=(root) NOPASSWD: /usr/bin/systemctl reload php8.4-fpm, /usr/bin/super
 | `redis/marcaturshub.conf` | merge into `/etc/redis/redis.conf` |
 | `deploy.sh` | installed by the workflow to `/var/www/marcaturshub/bin/deploy.sh` |
 
-TLS: `certbot --nginx -d api.marcaturshub.com.ng -d ws.marcaturshub.com.ng` (auto-renewal via the certbot systemd timer).
+TLS: `certbot certonly --webroot -w /var/www/letsencrypt -d api.marcaturshub.com.ng -d ws.marcaturshub.com.ng --deploy-hook "systemctl reload nginx"` (the reference Nginx files already contain the TLS directives, so certbot must not edit them; auto-renewal via the certbot systemd timer).
 
 ### PHP-FPM pool (2 GB host)
 
