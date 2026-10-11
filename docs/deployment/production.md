@@ -77,6 +77,7 @@ Notifications and the certificate PDF job are queued; without the worker no emai
 Workflow: `.github/workflows/production.yml` (backend), `frontend/.github/workflows/production.yml`, `adminControl/.github/workflows/production.yml`.
 
 ```text
+pull request to main → backend-checks.yml (the same Pint + PHPUnit; no secrets, no environment, cannot deploy)
 merge to main → tests (Pint + PHPUnit / typecheck + lint + vitest) → build artifact
 manual "Run workflow" (deploy = true) on main
   → GitHub Environment "production" approval (required reviewer)

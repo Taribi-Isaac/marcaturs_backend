@@ -764,6 +764,22 @@ check "deploy.sh: destructive artisan commands only in comments" \
   bash -c '! grep -vE "^[[:space:]]*#" "$1" | grep -qE "migrate:fresh|db:wipe|db:seed|migrate:rollback|migrate:reset"' _ "$DEPLOY"
 check "deploy.sh: no shell tracing" bash -c '! grep -qE "set -[a-z]*x" "$1"' _ "$DEPLOY"
 
+CHECKS="$REPO/.github/workflows/backend-checks.yml"
+triggers() { awk '/^on:/{f=1;next} f&&/^[^ #]/{f=0} f&&/^  [a-z_]+:/{printf "%s ", $1}' "$1"; }
+
+fresh "workflow: pull requests run the production checks but can never deploy"
+wf_has "uses: ./.github/workflows/backend-checks.yml"
+check "production.yml triggers only push and workflow_dispatch" test "$(triggers "$WORKFLOW")" = "push: workflow_dispatch: "
+check "backend-checks.yml triggers only pull_request and workflow_call" test "$(triggers "$CHECKS")" = "pull_request: workflow_call: "
+check "backend-checks.yml uses no secrets" bash -c '! grep -q "secrets\." "$1"' _ "$CHECKS"
+check "backend-checks.yml uses no GitHub Environment" bash -c '! grep -qE "^[[:space:]]*environment:" "$1"' _ "$CHECKS"
+check "backend-checks.yml has no SSH, deploy or migration steps" \
+  bash -c '! grep -vE "^[[:space:]]*#" "$1" | grep -qiE "ssh|scp|deploy\.sh|migrate|LIGHTSAIL"' _ "$CHECKS"
+check "backend-checks.yml token is read-only" grep -q "contents: read" "$CHECKS"
+check "backend-checks.yml runs Pint" grep -q "vendor/bin/pint --test" "$CHECKS"
+check "backend-checks.yml runs PHPUnit" grep -q "php artisan test" "$CHECKS"
+check "production.yml no longer defines its own Pint/PHPUnit steps" bash -c '! grep -qE "pint --test|php artisan test" "$1"' _ "$WORKFLOW"
+
 # ---------------------------------------------------------------- result
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"

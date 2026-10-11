@@ -8,6 +8,9 @@ name: Production
 #                     → automatic code rollback (+ smoke) only if the new release became current
 #                       and a later step failed; job summary reports the active release
 #
+# Pull requests never trigger this workflow; they run the same "test" checks through
+# backend-checks.yml, which has no secrets or environment.
+#
 # `develop` never triggers this workflow. Deploys are only possible from `main`
 # and only after a required reviewer approves the "production" environment.
 #
@@ -42,22 +45,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Pint + PHPUnit, shared with pull requests (no secrets, read-only token).
   test:
     name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.4"
-          extensions: mbstring, xml, pdo_sqlite, pdo_mysql, redis, bcmath, intl, zip
-          coverage: none
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-      - name: Style
-        run: vendor/bin/pint --test
-      - name: Run tests
-        run: php artisan test
+    uses: ./.github/workflows/backend-checks.yml
+    permissions:
+      contents: read
 
   build:
     name: Build release artifact
