@@ -45,5 +45,10 @@ jobs:
         run: composer install --no-interaction --prefer-dist
       - name: Style
         run: vendor/bin/pint --test
+      # Laravel probes for an optional .env; an empty one adds no configuration.
+      - name: Create empty .env
+        run: |
+          touch .env
+          test ! -s .env
       - name: Run tests
         run: php artisan test
