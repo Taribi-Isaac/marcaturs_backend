@@ -8,8 +8,12 @@
 #   APP_URL=https://app.marcaturshub.com.ng       participant SPA shell + CORS allow check
 #   ADMIN_URL=https://admin.marcaturshub.com.ng   admin SPA shell (noindex)
 #   WS_URL=wss://ws.marcaturshub.com.ng REVERB_APP_KEY=<public key>   WebSocket upgrade
+#                                                 (WS_URL without REVERB_APP_KEY is a configuration error)
 #   EXPECT_HSTS=1                                 require Strict-Transport-Security
+#   EXPECT_WS=1                                   require WS_URL (the WebSocket check cannot be skipped)
 # STAGING_API_URL / STAGING_APP_URL / STAGING_ADMIN_URL are accepted as aliases.
+#
+# Exit codes: 0 all checks passed, 1 a check failed, 2 configuration error (no check was run).
 set -euo pipefail
 
 API="${API_URL:-${STAGING_API_URL:-}}"
@@ -18,6 +22,19 @@ ADMIN="${ADMIN_URL:-${STAGING_ADMIN_URL:-}}"
 
 if [[ -z "$API" ]]; then
   echo "API_URL is required (do not invent a host — use the real API origin)."
+  exit 2
+fi
+
+if [[ "${EXPECT_WS:-0}" == "1" && -z "${WS_URL:-}" ]]; then
+  echo "smoke configuration error: EXPECT_WS=1 but WS_URL is empty or unset."
+  echo "Set WS_URL to the public Reverb origin (production: GitHub variable PRODUCTION_WS_URL)."
+  exit 2
+fi
+
+REVERB_APP_KEY="${REVERB_APP_KEY:-}"
+if [[ -n "${WS_URL:-}" && -z "${REVERB_APP_KEY//[[:space:]]/}" ]]; then
+  echo "smoke configuration error: WS_URL is set but REVERB_APP_KEY is empty or unset, so the WebSocket check cannot run."
+  echo "Set REVERB_APP_KEY to the public Reverb app key (the REVERB_APP_KEY value in shared/.env; production: GitHub variable REVERB_APP_KEY), or unset WS_URL to skip the WebSocket check."
   exit 2
 fi
 
@@ -95,7 +112,7 @@ if [[ -n "$ADMIN" ]]; then
   echo "$ADMIN_HTML" | grep -qi 'noindex' || { echo "admin missing noindex"; exit 1; }
 fi
 
-if [[ -n "${WS_URL:-}" && -n "${REVERB_APP_KEY:-}" ]]; then
+if [[ -n "${WS_URL:-}" ]]; then
   WS_HTTPS="$(echo "${WS_URL%/}" | sed -e 's#^wss://#https://#' -e 's#^ws://#http://#')"
   echo "==> Reverb WebSocket upgrade $WS_URL"
   WS_HDRS="$(curl -sS -o /dev/null -D - --http1.1 --max-time 5 \
