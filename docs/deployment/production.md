@@ -25,6 +25,8 @@ deploy (SSH user for CI, member of www-data; sudo only for the two commands belo
 /var/www/marcaturshub/
   bin/deploy.sh                 installed by CI from infra/lightsail/deploy.sh
   releases/<YYYYmmddHHMMSS-sha>/
+  failed/<id>.<UTC>.<reason>/   0750, created by deploy.sh — failed / rolled-back releases (manual cleanup)
+  state/                        0750, created by deploy.sh — active, history.log, lock/
   shared/.env                   0640 deploy:www-data — production secrets
   shared/storage/               2775 deploy:www-data (setgid) — logs, framework cache
   current -> releases/<id>
@@ -78,7 +80,9 @@ Workflow: `.github/workflows/production.yml` (backend), `frontend/.github/workfl
 merge to main → tests (Pint + PHPUnit / typecheck + lint + vitest) → build artifact
 manual "Run workflow" (deploy = true) on main
   → GitHub Environment "production" approval (required reviewer)
-  → API: upload artifact → deploy.sh release [--migrate] → smoke → auto code rollback if smoke fails
+  → API: upload artifact → deploy.sh release [--migrate] → smoke
+         → if the new release became current and a later step failed: deploy.sh rollback → smoke again
+         → job summary: active release, deploy and rollback outcome
   → SPAs: guarded production build → wrangler pages deploy (Direct Upload)
 ```
 
@@ -86,12 +90,16 @@ manual "Run workflow" (deploy = true) on main
 
 ### What `deploy.sh release` does
 
-1. Refuses to run unless `shared/.env` has `APP_ENV=production` and `APP_DEBUG=false`.
-2. Unpacks the artifact into `releases/<id>`, links `shared/.env` and `shared/storage`.
-3. `php artisan config:cache`, `route:cache`, `event:cache`.
-4. **Migration gate:** only with `--migrate` (workflow input `migrate`, which also requires `backup_confirmed`). Prints pending migrations, then `php artisan migrate --force`. Migrations run before the switch, so they must be backward compatible with the running release (TAD §69). Never `migrate:fresh`, `db:wipe` or seeders in production.
-5. Atomically switches `current`, reloads PHP-FPM (clears OPcache), restarts `marcaturshub:*` (queue, scheduler, Reverb).
-6. Keeps the five newest releases.
+1. Takes `state/lock` (a concurrent release or rollback exits 75) and validates the release id.
+2. Refuses to run unless `shared/.env` has `APP_ENV=production` and `APP_DEBUG=false`, and `current` (if any) points into `releases/`.
+3. Unpacks the artifact into `releases/<id>`, links `shared/.env` and `shared/storage`. A leftover `releases/<id>` from an attempt that never activated is moved to `failed/`; an id that was ever active is refused.
+4. `php artisan config:cache`, `route:cache`, `event:cache`.
+5. **Migration gate:** only with `--migrate` (workflow input `migrate`, which also requires `backup_confirmed`). Prints pending migrations, then `php artisan migrate --force`. On an empty database (first release) `migrate:status` reports no migrations table; the script says so and continues only when no release is active. Any other `migrate:status` error (connection, permissions) stops the release. Migrations run before the switch, so they must be backward compatible with the running release (TAD §69). Never `migrate:fresh`, `db:wipe` or seeders in production.
+6. Atomically switches `current`, reloads PHP-FPM (clears OPcache) and checks it is active, restarts `marcaturshub:*` (queue, scheduler, Reverb), and runs the health check (`HEALTH_URL`, supplied by the workflow via Nginx on `127.0.0.1`).
+7. Marks the release activated and records it in `state/active` with the previous activated release as rollback target.
+8. Keeps the five newest releases (never the current, recorded active or recorded previous release).
+
+Failures before step 6's switch exit 10 and leave the old release serving; failures after it exit 20 and leave the new release current for rollback. Exit codes, `deploy.sh status` and recovery: [rollback.md](rollback.md).
 
 ### Before running a migration release
 
@@ -102,8 +110,9 @@ manual "Run workflow" (deploy = true) on main
 ### First release (one-off)
 
 1. Populate `shared/.env` from `.env.production.example`; generate `APP_KEY` (`php artisan key:generate --show` on any machine) and Reverb app id/key/secret (random strings).
-2. Run the workflow with `migrate = true` against the empty database.
-3. Create the first admin with `php artisan marcaturs:create-admin` from `current/` (never seed demo data; `DevelopmentSeedGuard` blocks it outside local).
+2. Run the workflow with `migrate = true` against the empty database. The release log says "No migrations table yet … expected only for the first release" before migrating.
+3. There is no previous release to roll back to. If the first release fails after activation, the workflow reports "FAILED (FIRST RELEASE) … Manual recovery required" and leaves it in place; follow "First release has no rollback target" in [rollback.md](rollback.md).
+4. Create the first admin with `php artisan marcaturs:create-admin` from `current/` (never seed demo data; `DevelopmentSeedGuard` blocks it outside local).
 
 ## 4. Smoke
 
