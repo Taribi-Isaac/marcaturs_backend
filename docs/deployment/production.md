@@ -129,6 +129,8 @@ EXPECT_HSTS=1 ./scripts/smoke.sh
 
 It checks health (database), security headers + HSTS, no `X-Powered-By`, `/up`, both SPA shells, CORS allows the app origin with credentials and rejects an unknown origin, and the Reverb WebSocket upgrade. Authenticated journeys follow the verification matrix in `production-checklist.md`.
 
+The WebSocket check fails closed: `WS_URL` without a non-empty `REVERB_APP_KEY` is a configuration error (exit 2) before any check runs, and the workflow sets `EXPECT_WS=1` so an empty `PRODUCTION_WS_URL` fails the same way. Exit codes: 0 passed, 1 a check failed, 2 configuration error. Regression harness: `scripts/tests/smoke-test.sh` (run by `tests/Feature/Deployment/SmokeScriptTest.php`).
+
 ## 5. Production configuration rules
 
 ```text
