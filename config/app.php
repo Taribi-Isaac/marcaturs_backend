@@ -56,6 +56,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Participant SPA URL
+    |--------------------------------------------------------------------------
+    |
+    | Origin of the participant web app, used for links in emails and API
+    | responses (password reset, email verification redirect, commission and
+    | official payment share links). Read via config() so the value survives
+    | `php artisan config:cache` in production.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

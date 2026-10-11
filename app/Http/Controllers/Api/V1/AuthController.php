@@ -120,7 +120,7 @@ class AuthController extends Controller
         $user = $this->emailVerification->verify($user, $hash);
 
         if (! $request->expectsJson()) {
-            $frontend = rtrim((string) env('FRONTEND_URL', ''), '/');
+            $frontend = rtrim((string) config('app.frontend_url', ''), '/');
 
             if ($frontend !== '') {
                 return redirect()->away($frontend.'/login?email_verified=1');

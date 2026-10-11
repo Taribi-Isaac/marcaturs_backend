@@ -1,6 +1,10 @@
 # MarcatursHub API — multi-target image (ENG-040A)
 # Targets: runtime (shared), api, worker, scheduler, reverb
 #
+# DEFERRED (MH-OPS-006): these images serve local parity and the future ECS path.
+# Pilot production runs on Lightsail with Nginx + PHP-FPM 8.4 (infra/lightsail/);
+# the `api` target's `artisan serve` must never be used in production.
+#
 # Build examples:
 #   docker build -f docker/Dockerfile --target api -t marcaturshub-api:staging .
 #   docker build -f docker/Dockerfile --target worker -t marcaturshub-worker:staging .

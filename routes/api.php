@@ -317,18 +317,18 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/packages', [CampaignFeaturedController::class, 'packages'])->name('packages');
         });
 
-        Route::middleware('role:ADMIN')->prefix('admin')->name('admin.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin'])->prefix('admin')->name('admin.')->group(function (): void {
             Route::get('/overview', [AdminOverviewController::class, 'show'])
                 ->middleware('permission:overview.view')
                 ->name('overview');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:staff.view'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:staff.view'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
             Route::get('/', [AdminStaffController::class, 'index'])->name('index');
             Route::get('/{user}', [AdminStaffController::class, 'show'])->whereNumber('user')->name('show');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:staff.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:staff.manage'])->prefix('admin/staff')->name('admin.staff.')->group(function (): void {
             Route::post('/invitations', [AdminStaffController::class, 'invite'])
                 ->middleware('throttle:registration')
                 ->name('invitations.store');
@@ -343,12 +343,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->name('direct');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:users.view'])->prefix('admin/users')->name('admin.users.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:users.view'])->prefix('admin/users')->name('admin.users.')->group(function (): void {
             Route::get('/', [AdminUserController::class, 'index'])->name('index');
             Route::get('/{user}', [AdminUserController::class, 'show'])->whereNumber('user')->name('show');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:certification.view'])
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:certification.view'])
             ->prefix('admin/certification/programmes')
             ->name('admin.certification.programmes.')
             ->scopeBindings()
@@ -397,7 +397,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('versions.assessment.questions.show');
             });
 
-        Route::middleware(['role:ADMIN', 'permission:certification.manage'])
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:certification.manage'])
             ->prefix('admin/certification/programmes')
             ->name('admin.certification.programmes.')
             ->scopeBindings()
@@ -480,7 +480,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('versions.modules.lessons.resources.reorder');
             });
 
-        Route::middleware(['role:ADMIN', 'permission:certification.learners.view'])
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:certification.learners.view'])
             ->prefix('admin/certification/enrollments')
             ->name('admin.certification.enrollments.')
             ->group(function (): void {
@@ -502,7 +502,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('certificates.index');
             });
 
-        Route::middleware(['role:ADMIN', 'permission:certification.learners.view'])
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:certification.learners.view'])
             ->prefix('admin/certification/awards')
             ->name('admin.certification.awards.')
             ->group(function (): void {
@@ -511,7 +511,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('show');
             });
 
-        Route::middleware(['role:ADMIN'])
+        Route::middleware(['role:ADMIN', 'admin.origin'])
             ->prefix('admin/certification/certificates')
             ->name('admin.certification.certificates.')
             ->group(function (): void {
@@ -529,14 +529,14 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                     ->name('artifact.retry');
             });
 
-        Route::middleware(['role:ADMIN', 'permission:users.manage'])->prefix('admin/users')->name('admin.users.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:users.manage'])->prefix('admin/users')->name('admin.users.')->group(function (): void {
             Route::post('/{user}/restrict', [AdminUserController::class, 'restrict'])->whereNumber('user')->name('restrict');
             Route::post('/{user}/suspend', [AdminUserController::class, 'suspend'])->whereNumber('user')->name('suspend');
             Route::post('/{user}/restore', [AdminUserController::class, 'restore'])->whereNumber('user')->name('restore');
             Route::post('/{user}/ban', [AdminUserController::class, 'ban'])->whereNumber('user')->name('ban');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:deals.view'])->prefix('admin/deals')->name('admin.deals.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:deals.view'])->prefix('admin/deals')->name('admin.deals.')->group(function (): void {
             Route::get('/', [AdminDealController::class, 'index'])->name('index');
             Route::get('/{deal}', [AdminDealController::class, 'show'])->whereNumber('deal')->name('show');
             Route::get('/{deal}/payment-evidence/{paymentEvidence}/download', [AdminDealController::class, 'downloadEvidence'])
@@ -544,7 +544,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->name('payment-evidence.download');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:campaigns.view'])->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:campaigns.view'])->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
             Route::get('/', [AdminCampaignController::class, 'index'])->name('index');
             Route::get('/{campaign}', [AdminCampaignController::class, 'show'])->name('show');
             Route::get('/{campaign}/extensions', [AdminCampaignExtensionController::class, 'indexExtensions'])->name('extensions.index');
@@ -555,7 +555,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/{campaign}/cover/download', [AdminCampaignCoverController::class, 'download'])->name('cover.download');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:campaigns.manage'])->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:campaigns.manage'])->prefix('admin/campaigns')->name('admin.campaigns.')->group(function (): void {
             Route::post('/{campaign}/approve', [AdminCampaignController::class, 'approve'])->name('approve');
             Route::post('/{campaign}/reject', [AdminCampaignController::class, 'reject'])->name('reject');
             Route::post('/{campaign}/request-modification', [AdminCampaignController::class, 'requestModification'])->name('request-modification');
@@ -564,38 +564,38 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::post('/{campaign}/close', [AdminCampaignController::class, 'close'])->name('close');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:configuration.manage'])->prefix('admin/campaign-extension-packages')->name('admin.campaign-extension-packages.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:configuration.manage'])->prefix('admin/campaign-extension-packages')->name('admin.campaign-extension-packages.')->group(function (): void {
             Route::get('/', [AdminCampaignExtensionController::class, 'indexPackages'])->name('index');
             Route::post('/', [AdminCampaignExtensionController::class, 'storePackage'])->name('store');
             Route::patch('/{package}', [AdminCampaignExtensionController::class, 'updatePackage'])->name('update');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:configuration.manage'])->prefix('admin/campaign-featured-packages')->name('admin.campaign-featured-packages.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:configuration.manage'])->prefix('admin/campaign-featured-packages')->name('admin.campaign-featured-packages.')->group(function (): void {
             Route::get('/', [AdminCampaignFeaturedController::class, 'indexPackages'])->name('index');
             Route::post('/', [AdminCampaignFeaturedController::class, 'storePackage'])->name('store');
             Route::patch('/{package}', [AdminCampaignFeaturedController::class, 'updatePackage'])->name('update');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:conversations.moderate'])->prefix('admin/conversations')->name('admin.conversations.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:conversations.moderate'])->prefix('admin/conversations')->name('admin.conversations.')->group(function (): void {
             Route::get('/', [AdminConversationController::class, 'index'])->name('index');
             Route::get('/{conversation}', [AdminConversationController::class, 'show'])->name('show');
             Route::get('/{conversation}/messages', [AdminConversationController::class, 'messages'])->name('messages.index');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:configuration.manage'])->prefix('admin/dispute-categories')->name('admin.dispute-categories.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:configuration.manage'])->prefix('admin/dispute-categories')->name('admin.dispute-categories.')->group(function (): void {
             Route::get('/', [AdminDisputeController::class, 'indexCategories'])->name('index');
             Route::post('/', [AdminDisputeController::class, 'storeCategory'])->name('store');
             Route::patch('/{disputeCategory}', [AdminDisputeController::class, 'updateCategory'])->name('update');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:disputes.view'])->prefix('admin/disputes')->name('admin.disputes.')->scopeBindings()->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:disputes.view'])->prefix('admin/disputes')->name('admin.disputes.')->scopeBindings()->group(function (): void {
             Route::get('/', [AdminDisputeController::class, 'index'])->name('index');
             Route::get('/{dispute}', [AdminDisputeController::class, 'show'])->name('show');
             Route::get('/{dispute}/attachments/{attachment}/download', [AdminDisputeController::class, 'downloadAttachment'])
                 ->name('attachments.download');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:disputes.manage'])->prefix('admin/disputes')->name('admin.disputes.')->scopeBindings()->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:disputes.manage'])->prefix('admin/disputes')->name('admin.disputes.')->scopeBindings()->group(function (): void {
             Route::post('/{dispute}/start-review', [AdminDisputeController::class, 'startReview'])->name('start-review');
             Route::post('/{dispute}/request-evidence', [AdminDisputeController::class, 'requestEvidence'])->name('request-evidence');
             Route::post('/{dispute}/resume-review', [AdminDisputeController::class, 'resumeReview'])->name('resume-review');
@@ -607,13 +607,13 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->name('attachments.store');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:configuration.manage'])->prefix('admin/categories')->name('admin.categories.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:configuration.manage'])->prefix('admin/categories')->name('admin.categories.')->group(function (): void {
             Route::get('/', [AdminCategoryController::class, 'index'])->name('index');
             Route::post('/', [AdminCategoryController::class, 'store'])->name('store');
             Route::patch('/{category}', [AdminCategoryController::class, 'update'])->name('update');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:verification.view'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:verification.view'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
             Route::get('/requirements', [AdminVerificationController::class, 'indexRequirements'])->name('requirements.index');
             Route::get('/submissions', [AdminVerificationController::class, 'indexSubmissions'])->name('submissions.index');
             Route::get('/submissions/{submission}', [AdminVerificationController::class, 'showSubmission'])->name('submissions.show');
@@ -621,12 +621,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/submissions/{submission}/evidence/{evidence}/download', [AdminVerificationController::class, 'downloadEvidence'])->name('submissions.evidence.download');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:verification.configure'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:verification.configure'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
             Route::post('/requirements', [AdminVerificationController::class, 'storeRequirement'])->name('requirements.store');
             Route::patch('/requirements/{requirement}', [AdminVerificationController::class, 'updateRequirement'])->name('requirements.update');
         });
 
-        Route::middleware(['role:ADMIN', 'permission:verification.review'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:verification.review'])->prefix('admin/verification')->name('admin.verification.')->group(function (): void {
             Route::post('/submissions/{submission}/start-review', [AdminVerificationController::class, 'startReview'])->name('submissions.start-review');
             Route::post('/submissions/{submission}/approve', [AdminVerificationController::class, 'approve'])->name('submissions.approve');
             Route::post('/submissions/{submission}/reject', [AdminVerificationController::class, 'reject'])->name('submissions.reject');

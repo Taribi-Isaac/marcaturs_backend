@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountAccess;
+use App\Http\Middleware\EnsureAdminOrigin;
 use App\Http\Middleware\EnsureAdminPermission;
 use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\EnsureUserHasRole;
@@ -41,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'email.verified' => EnsureEmailVerified::class,
             'role' => EnsureUserHasRole::class,
             'permission' => EnsureAdminPermission::class,
+            'admin.origin' => EnsureAdminOrigin::class,
         ]);
         $middleware->preventRequestsDuringMaintenance(except: [
             'api/v1/health',

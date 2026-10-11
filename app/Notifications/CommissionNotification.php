@@ -188,7 +188,7 @@ class CommissionNotification extends BaseNotification
 
     private function actionUrl(Commission $commission): ?string
     {
-        $base = rtrim((string) env('FRONTEND_URL', ''), '/');
+        $base = rtrim((string) config('app.frontend_url', ''), '/');
 
         if ($base === '') {
             return null;

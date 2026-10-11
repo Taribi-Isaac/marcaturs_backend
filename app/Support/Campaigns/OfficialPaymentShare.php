@@ -35,7 +35,7 @@ final class OfficialPaymentShare
         $token = self::ensureToken($campaign);
         $apiPath = '/api/v1/public/official-payment-information/'.$token;
         $sharePath = '/pay/'.$token;
-        $frontend = rtrim((string) env('FRONTEND_URL', ''), '/');
+        $frontend = rtrim((string) config('app.frontend_url', ''), '/');
 
         return [
             'token' => $token,

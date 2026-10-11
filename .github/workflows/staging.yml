@@ -1,6 +1,9 @@
-name: Staging
+name: Future ECS (deferred)
 
 # ENG-040 / MH-OPS-001 — test, build images, optional ECR/ECS deploy.
+# DEFERRED (MH-OPS-006): ECS/ECR is the future scale path, not the pilot.
+# The pilot deploys through production.yml (Lightsail). Manual dispatch only so a
+# push to main never builds or ships ECS images.
 # Deploy requires GitHub Environment "staging" + AWS OIDC. Fail-closed otherwise.
 
 on:
@@ -10,11 +13,6 @@ on:
         description: "Push images to ECR and update ECS (requires AWS)"
         type: boolean
         default: false
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
 
 concurrency:
   group: staging-${{ github.ref }}
@@ -143,5 +141,5 @@ jobs:
             echo "vars.STAGING_API_URL not set — skip remote smoke (configure after DNS)."
             exit 0
           fi
-          chmod +x scripts/staging-smoke.sh
-          EXPECT_HSTS=1 ./scripts/staging-smoke.sh
+          chmod +x scripts/smoke.sh
+          EXPECT_HSTS=1 ./scripts/smoke.sh

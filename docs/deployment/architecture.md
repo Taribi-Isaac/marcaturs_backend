@@ -1,69 +1,65 @@
-# Architecture — ENG-040 / MH-OPS-001
+# Architecture — ENG-040 (aligned in MH-OPS-006)
 
-Derived from TAD §§3, 7, 8.1, 9, 34, 39, 67–68, 83, 98 and ADR-006 (AWS). Not an alternate hosting model.
+The approved first-production architecture is the **lean pilot** (MH-OPS-003/004, confirmed in MH-OPS-006): a single AWS Lightsail application host behind Cloudflare DNS, sized for a pilot of up to ~500 users. The TAD §9 AWS topology (ECS/ALB/RDS/ElastiCache/CloudFront) is **preserved as the future scale path** below, not replaced (TAD §98 "modest first production").
 
-## Target topology
+## Pilot topology (approved)
 
 ```text
-Internet (HTTPS / ACM)
-  → Route 53
-  → CloudFront
-      → S3 origin: Participant SPA
-      → S3 origin: Admin SPA
-      → ALB origin: Laravel API (+ optional API edge)
-  → ALB
-      → ECS/Fargate service: api
-      → ECS/Fargate service: reverb (WSS / private conversation.{id})
-  → ECS/Fargate service: worker   (queue:work redis)
-  → ECS/Fargate service: scheduler (schedule:work)
-  → RDS MySQL (private subnets)
-  → ElastiCache Redis (private)
-  → S3 private buckets (sensitive evidence + campaign media)
-  → Secrets Manager → ECS task definitions
-  → CloudWatch logs + alarms
-  → ECR images
-  → Paystack (staging = TEST keys only)
-  → Mail (SES/SMTP; staging sender identity)
+marcaturshub.com.ng  (Cloudflare DNS)
+  ├── marcaturshub.com.ng, www   → Cloudflare redirect → app (Product to confirm)
+  ├── app.marcaturshub.com.ng    → Cloudflare Pages  (Participant SPA)
+  ├── admin.marcaturshub.com.ng  → Cloudflare Pages  (Admin SPA)
+  ├── api.marcaturshub.com.ng    → Lightsail static IP (DNS-only)
+  └── ws.marcaturshub.com.ng     → Lightsail static IP (DNS-only)
+
+Lightsail instance (eu-north-1, Ubuntu 24.04 LTS)
+  ├── Nginx :443 (Let's Encrypt TLS)
+  │     ├── api.*  → PHP-FPM 8.4 → Laravel API
+  │     └── ws.*   → 127.0.0.1:8080 → Laravel Reverb
+  ├── Redis 7 (127.0.0.1, requirepass) — cache, sessions, queue
+  └── Supervisor
+        ├── php artisan queue:work redis   (1 worker)
+        ├── php artisan schedule:work       (exactly 1)
+        └── php artisan reverb:start        (1, loopback)
+
+Lightsail Managed MySQL 8 (same region, private, automated backups + PITR)
+Amazon S3 (two private buckets: sensitive, campaign-media)
+Resend (transactional email, API transport)
+Paystack (platform purchases only)
+GitHub Actions (CI + approval-gated deploys from main)
 ```
 
-### Authoritative AWS services (TAD §9)
+### Component decisions
 
-| Concern | Service |
-| ------- | ------- |
-| DNS | Route 53 |
-| CDN / HTTPS edge | CloudFront + ACM |
-| Load balancing | Application Load Balancer |
-| Compute | ECS/Fargate (or equivalent managed containers) |
-| Database | Amazon RDS MySQL |
-| Cache / queue / sessions | ElastiCache Redis |
-| Object storage | Amazon S3 (private) |
-| Encryption | AWS KMS |
-| Secrets | AWS Secrets Manager |
-| Observability | CloudWatch |
-| Images | Amazon ECR |
-| Backups | RDS automated backups + S3 versioning/lifecycle |
-| CI/CD | GitHub Actions |
+| Concern | Pilot | Future scale (deferred) |
+| --- | --- | --- |
+| DNS / edge | Cloudflare (free) | Cloudflare and/or Route 53 |
+| SPA hosting | Cloudflare Pages (Direct Upload) | Cloudflare Pages or S3 + CloudFront |
+| API / workers / Reverb | One Lightsail instance, Supervisor | ECS/Fargate services behind an ALB |
+| MySQL | Lightsail Managed MySQL | Amazon RDS MySQL |
+| Redis | On the app host (loopback) | ElastiCache |
+| Object storage | Private S3 | Private S3 + KMS |
+| Email | Resend | Resend |
+| Secrets | `shared/.env` on the host (0640) | AWS Secrets Manager |
+| Payments | Paystack (platform purchases) | Same |
+| CI/CD | GitHub Actions → SSH release / `wrangler pages deploy` | GitHub Actions → ECR/ECS (`staging.yml`, deferred) |
 
-Exact VPC sizing is finalized during infrastructure implementation (TAD §9).
+`php artisan serve` is never used in production. Amazon SES is not part of the production path.
 
-### Frontend hosting note
+### Why `api` and `ws` stay DNS-only initially
 
-TAD diagrams show CloudFront → ALB → Laravel. SPAs are separate Vite builds. Staging/production host **static SPAs on S3+CloudFront** and **API/Reverb on ALB→ECS** so UAT can use HTTPS origins without embedding SPAs in the API image. This does not replace Reverb or invent a non-AWS stack.
-
-### Reverb
-
-TAD names a generic WebSocket layer. MarcatursHub implements **Laravel Reverb** (MH-BE-013) with private `conversation.{id}` authorization. Do not substitute another WebSocket product.
+Long-lived WebSockets and TLS at Nginx are simplest without the Cloudflare proxy. If either host is later proxied (orange cloud), Nginx must restore the real client IP (`real_ip_header CF-Connecting-IP` with Cloudflare ranges) because Laravel trusts forwarded headers and rate limits key on client IP.
 
 ## Process separation
 
-| Component | Dockerfile target | Command |
-| --------- | ----------------- | ------- |
-| API | `api` | `php artisan serve --host=0.0.0.0 --port=8000` (staging bootstrap; php-fpm+nginx optional later) |
-| Queue worker | `worker` | `php artisan queue:work redis --sleep=1 --tries=3 --max-time=3600` |
-| Scheduler | `scheduler` | `php artisan schedule:work` |
-| Reverb | `reverb` | `php artisan reverb:start --host=0.0.0.0 --port=8080` |
+| Process | How it runs | Count |
+| --- | --- | --- |
+| HTTP API | Nginx → PHP-FPM 8.4 (`/run/php/php8.4-fpm.sock`) | FPM pool |
+| Queue worker | Supervisor `queue:work redis --sleep=1 --tries=3 --timeout=60 --max-time=3600` | 1 |
+| Scheduler | Supervisor `schedule:work` | exactly 1 (no cron `schedule:run`) |
+| Reverb | Supervisor `reverb:start --host=127.0.0.1 --port=8080` | 1 |
 
-Never combine worker/scheduler/reverb into the API process (duplicate scheduler risk).
+Reference configs: `infra/lightsail/` (Nginx, Supervisor, PHP, Redis, `deploy.sh`).
 
 ## Scheduled jobs (application)
 
@@ -75,17 +71,20 @@ Registered in `bootstrap/app.php`:
 
 ## Environment separation
 
-| Env | `APP_ENV` | `APP_DEBUG` | Data / secrets |
-| --- | --------- | ----------- | -------------- |
-| Local | `local` | may be `true` | Engineer machine only |
-| Staging | `staging` | **`false`** | Isolated DB/Redis/S3/Paystack test/mail |
-| Production | `production` | **`false`** | Real customers — see `production.md` |
+| Env | Branch | `APP_ENV` | `APP_DEBUG` | Status |
+| --- | --- | --- | --- | --- |
+| Local | any | `local` | may be `true` | Engineer machines |
+| Production | `main` | `production` | **`false`** | Pilot target (this document) |
+| Staging | `develop` | `staging` | **`false`** | Future — not built; will mirror the pilot model with separate resources |
 
 Production data must never be casually copied into development (TAD §8).
 
 ## Secrets
 
-- Never commit real credentials.
-- Staging/production: AWS Secrets Manager → ECS task secrets.
-- Images must not bake secrets.
-- `VITE_*` values are public to browsers — never put Paystack secret / DB passwords in frontend env.
+- Never commit real credentials. `backend/.env.production.example` holds placeholders only.
+- Production secrets live in `/var/www/marcaturshub/shared/.env` (owner `deploy:www-data`, mode 0640) and in GitHub Environment `production` secrets for CI.
+- `VITE_*` values are public to browsers — never put Paystack secrets, DB passwords, Resend keys or AWS keys in frontend env.
+
+## Future scale path (deferred)
+
+Move toward ECS + ALB + RDS + ElastiCache when **observed** load requires it, for example: sustained memory pressure on the largest sensible Lightsail plan, a need for more than one API instance, queue lag that one host cannot absorb, or availability requirements beyond single-host RTO. The existing container images (`docker/Dockerfile`), `docker-compose.staging.yml`, `infra/aws/staging/` and the `staging.yml` workflows remain as the starting point for that migration.

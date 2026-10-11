@@ -41,7 +41,7 @@ rg transactional_mail storage/logs/laravel.log
 tail -f storage/logs/mail.log
 ```
 
-Do not use production SES/SMTP for local verification.
+Do not use the production Resend key for local verification.
 
 **UAT tip:** a Redis backlog of stale notification jobs can make the next
 `queue:work --once` render mail for a different recipient. Prefer matching
@@ -106,9 +106,19 @@ Auth verification and password reset are **mail-only** (tokens must not enter th
 | Certification Award notification | **Deferred** — Award state via API/UI; no dedicated Award email |
 | Certificate available email (FR-065) | Implemented |
 
-## Production prerequisites (not configured here)
+## Production (Resend — MH-OPS-006)
 
-- Real `MAIL_MAILER` (SMTP/SES)
-- Verified from-domain / DNS
-- Always-on `queue:work` (or equivalent)
-- Never commit production credentials
+Provider: **Resend** through Laravel's built-in `resend` mail transport (`resend/resend-php` ^1.0 is installed). No SES path.
+
+| Variable | Production |
+| --- | --- |
+| `MAIL_MAILER` | `resend` |
+| `RESEND_API_KEY` | Secret, sending-only key (server-side only) |
+| `MAIL_FROM_ADDRESS` / `MAIL_FROM_NAME` | Address on the Resend-verified domain, e.g. `no-reply@marcaturshub.com.ng` (Product to confirm) |
+| `MAIL_REPLY_TO_ADDRESS` / `MAIL_REPLY_TO_NAME` | Optional global Reply-To (`config/mail.php`); none when unset |
+
+- All notifications above stay queued: the Supervisor queue worker must be running or no mail is sent.
+- Domain verification needs the DKIM, return-path (SPF) and DMARC records Resend shows — see `docs/deployment/production-checklist.md`.
+- Resend's free plan caps sending at 100 emails/day; over the cap Resend returns 429, the job retries (`--tries=3`) and then lands in `failed_jobs`. Choose the plan before pilot traffic.
+- Bounce/complaint visibility is the Resend dashboard for the pilot; an application webhook is not implemented.
+- Never commit production credentials.

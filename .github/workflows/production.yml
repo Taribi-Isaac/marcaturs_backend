@@ -1,0 +1,251 @@
+name: Production
+
+# MH-OPS-006 — Lightsail production pipeline.
+#
+# push to main      → test + build release artifact (no deploy)
+# manual dispatch   → test + build → GitHub Environment "production" approval
+#                     → upload + release on Lightsail → smoke
+#                     → automatic code rollback (+ smoke) only if the new release became current
+#                       and a later step failed; job summary reports the active release
+#
+# Pull requests never trigger this workflow; they run the same "test" checks through
+# backend-checks.yml, which has no secrets or environment.
+#
+# `develop` never triggers this workflow. Deploys are only possible from `main`
+# and only after a required reviewer approves the "production" environment.
+#
+# Environment "production" must define:
+#   secrets: LIGHTSAIL_SSH_KEY, LIGHTSAIL_SSH_KNOWN_HOSTS
+#   vars:    LIGHTSAIL_HOST, LIGHTSAIL_USER, PRODUCTION_API_URL, PRODUCTION_APP_URL,
+#            PRODUCTION_ADMIN_URL, PRODUCTION_WS_URL, REVERB_APP_KEY (public)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy this main commit to production (requires environment approval)"
+        type: boolean
+        default: false
+      migrate:
+        description: "Run php artisan migrate --force during the release"
+        type: boolean
+        default: false
+      backup_confirmed:
+        description: "I confirmed a fresh database snapshot / restore point exists (required with migrate)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  # Pint + PHPUnit, shared with pull requests (no secrets, read-only token).
+  test:
+    name: Test
+    uses: ./.github/workflows/backend-checks.yml
+    permissions:
+      contents: read
+
+  build:
+    name: Build release artifact
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.meta.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, xml, pdo_mysql, redis, bcmath, intl, zip
+          coverage: none
+      - name: Install production dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+      - name: Package
+        id: meta
+        run: |
+          set -euo pipefail
+          release_id="$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::12}"
+          echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+          rm -f bootstrap/cache/config.php bootstrap/cache/routes-*.php bootstrap/cache/events.php
+          tar -czf release.tar.gz app bootstrap config database public resources routes vendor artisan composer.json composer.lock
+          ls -lh release.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-release
+          path: release.tar.gz
+          retention-days: 14
+
+  deploy:
+    name: Deploy to Lightsail
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Migration gate
+        if: inputs.migrate && !inputs.backup_confirmed
+        run: |
+          echo "::error::Migrations requested without confirming a fresh database snapshot / restore point."
+          exit 1
+
+      - name: Require production configuration
+        env:
+          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.LIGHTSAIL_HOST }}
+          USER: ${{ vars.LIGHTSAIL_USER }}
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          missing=0
+          for name in SSH_KEY KNOWN_HOSTS HOST USER API_URL; do
+            if [ -z "${!name}" ]; then echo "::error::Missing $name in environment 'production'"; missing=1; fi
+          done
+          exit "$missing"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-release
+
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_SSH_KNOWN_HOSTS }}
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          api_host="${API_URL#https://}"
+          api_host="${api_host%%/*}"
+          if [[ ! "$api_host" =~ ^[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::PRODUCTION_API_URL must look like https://<host>"
+            exit 1
+          fi
+          # deploy.sh checks health on the host itself (Nginx on 127.0.0.1, real TLS name).
+          {
+            echo "HEALTH_URL=https://$api_host/api/v1/health"
+            echo "HEALTH_RESOLVE=$api_host:443:127.0.0.1"
+          } >> "$GITHUB_ENV"
+
+      - name: Release
+        id: release
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+          RELEASE_ID: ${{ needs.build.outputs.release_id }}
+          MIGRATE_FLAG: ${{ inputs.migrate && '--migrate' || '' }}
+        run: |
+          set -uo pipefail
+          ssh_opts=(-i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes)
+          rc=0
+          if scp "${ssh_opts[@]}" release.tar.gz infra/lightsail/deploy.sh "$TARGET:/tmp/"; then
+            # Release id, health URL and migrate flag are validated values expanded on the runner.
+            # shellcheck disable=SC2029
+            ssh "${ssh_opts[@]}" "$TARGET" "install -m 755 /tmp/deploy.sh /var/www/marcaturshub/bin/deploy.sh \
+              && HEALTH_URL='$HEALTH_URL' HEALTH_RESOLVE='$HEALTH_RESOLVE' \
+                 /var/www/marcaturshub/bin/deploy.sh release /tmp/release.tar.gz '$RELEASE_ID' $MIGRATE_FLAG; \
+              rc=\$?; rm -f /tmp/release.tar.gz /tmp/deploy.sh; exit \$rc" || rc=$?
+          else
+            rc=1
+            echo "::error::Upload failed; nothing changed on the server"
+          fi
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::deploy.sh release exited $rc: $(bash infra/lightsail/deploy-ci.sh describe "$rc")"
+          fi
+          exit "$rc"
+
+      - name: Smoke
+        id: smoke
+        env:
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+          APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          ADMIN_URL: ${{ vars.PRODUCTION_ADMIN_URL }}
+          WS_URL: ${{ vars.PRODUCTION_WS_URL }}
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
+          EXPECT_HSTS: "1"
+        run: |
+          sleep 5
+          bash scripts/smoke.sh
+
+      # Roll back only when the new release actually became current (post-activation
+      # failure or failed smoke). Pre-activation failures leave the old release serving.
+      - name: Decide recovery
+        id: decide
+        if: always() && steps.release.outcome != 'skipped'
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+          RELEASE_ID: ${{ needs.build.outputs.release_id }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+        run: |
+          set -uo pipefail
+          status="$(ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$TARGET" "/var/www/marcaturshub/bin/deploy.sh status")" || status=""
+          SERVER_CURRENT="$(printf '%s\n' "$status" | sed -n 's/^current=//p')"
+          export SERVER_CURRENT="${SERVER_CURRENT:-unknown}"
+          bash infra/lightsail/deploy-ci.sh decide | tee -a "$GITHUB_OUTPUT"
+
+      - name: Roll back code
+        id: rollback
+        if: always() && steps.decide.outputs.rollback == 'true'
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+        run: |
+          set -uo pipefail
+          rc=0
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$TARGET" \
+            "HEALTH_URL='$HEALTH_URL' HEALTH_RESOLVE='$HEALTH_RESOLVE' /var/www/marcaturshub/bin/deploy.sh rollback" || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          case "$rc" in
+            0) echo "::warning::Code rolled back. Database migrations (if any) were NOT reversed — see docs/deployment/rollback.md" ;;
+            30) echo "::error::First release: no previous successful release to roll back to. Manual recovery required — docs/deployment/rollback.md" ;;
+            *) echo "::error::Rollback failed ($rc): $(bash infra/lightsail/deploy-ci.sh describe "$rc"). Manual recovery required — docs/deployment/rollback.md" ;;
+          esac
+          exit "$rc"
+
+      - name: Smoke after rollback
+        id: post_rollback_smoke
+        if: always() && steps.rollback.outcome == 'success'
+        env:
+          API_URL: ${{ vars.PRODUCTION_API_URL }}
+          APP_URL: ${{ vars.PRODUCTION_APP_URL }}
+          ADMIN_URL: ${{ vars.PRODUCTION_ADMIN_URL }}
+          WS_URL: ${{ vars.PRODUCTION_WS_URL }}
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
+          EXPECT_HSTS: "1"
+        run: |
+          sleep 5
+          bash scripts/smoke.sh
+
+      - name: Deployment summary
+        if: always()
+        env:
+          TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+          RELEASE_ID: ${{ needs.build.outputs.release_id }}
+          MIGRATE: ${{ inputs.migrate }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          RELEASE_RC: ${{ steps.release.outputs.rc }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+          DECIDE_REASON: ${{ steps.decide.outputs.reason }}
+          ROLLBACK_OUTCOME: ${{ steps.rollback.outcome }}
+          ROLLBACK_RC: ${{ steps.rollback.outputs.rc }}
+          POST_SMOKE_OUTCOME: ${{ steps.post_rollback_smoke.outcome }}
+        run: |
+          set -uo pipefail
+          status=""
+          if [ -f ~/.ssh/id_deploy ]; then
+            status="$(ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes "$TARGET" "/var/www/marcaturshub/bin/deploy.sh status")" || status=""
+          fi
+          FINAL_CURRENT="$(printf '%s\n' "$status" | sed -n 's/^current=//p')"
+          export FINAL_CURRENT="${FINAL_CURRENT:-unknown}"
+          bash infra/lightsail/deploy-ci.sh summary >> "$GITHUB_STEP_SUMMARY"

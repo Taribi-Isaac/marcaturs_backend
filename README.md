@@ -92,7 +92,7 @@ Chat REST works without Reverb. To deliver new messages over WebSockets locally,
 php artisan reverb:start
 ```
 
-Use `BROADCAST_CONNECTION=reverb` and the `REVERB_*` placeholders from `.env.example`. Redis is already required for cache/queues/sessions; this slice does not add Horizon or a chat-specific queue worker (broadcast runs after DB commit, synchronously). Production ALB/WebSocket topology is not configured in this repository.
+Use `BROADCAST_CONNECTION=reverb` and the `REVERB_*` placeholders from `.env.example`. Redis is already required for cache/queues/sessions; this slice does not add Horizon or a chat-specific queue worker (broadcast runs after DB commit, synchronously). Production WebSocket topology: see [docs/deployment/production.md](docs/deployment/production.md).
 
 ### Local transactional email (MH-GATE-007)
 
@@ -144,7 +144,7 @@ npx newman run api-testing/MarcatursHub.postman_collection.json \
 - Domain modules listed in the TAD will be introduced when those features are built. Empty module shells were not added here.
 
 - Domain notes: [docs/verification.md](docs/verification.md), [docs/categories.md](docs/categories.md), [docs/campaigns.md](docs/campaigns.md), [docs/payments.md](docs/payments.md), [docs/chat.md](docs/chat.md), [docs/deals.md](docs/deals.md), [docs/transactional-email.md](docs/transactional-email.md).
-- Staging & production deployment foundation (ENG-040 / MH-OPS-001): [docs/deployment/README.md](docs/deployment/README.md).
+- Production deployment (Lightsail pilot, ENG-040 / MH-OPS-006): [docs/deployment/README.md](docs/deployment/README.md).
 - Security headers & Reverb origins (MH-BE-050): [docs/security-headers-and-reverb-origins.md](docs/security-headers-and-reverb-origins.md).
 
 ## Authentication

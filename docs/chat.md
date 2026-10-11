@@ -51,7 +51,7 @@ php artisan reverb:start
 
 Set `BROADCAST_CONNECTION=reverb` and the `REVERB_*` placeholders in `.env` (see `.env.example`). Chat broadcasting uses `ShouldBroadcastNow` after the DB transaction commits; it does **not** require a queue worker.
 
-Production WebSocket routing (ALB / CloudFront / process supervision) is **not** decided. Do not treat local Reverb as production topology.
+Production WebSocket routing (MH-OPS-006): `wss://ws.marcaturshub.com.ng` → Nginx → Reverb on `127.0.0.1:8080`, supervised by Supervisor, with explicit `REVERB_ALLOWED_ORIGINS`. See `docs/deployment/production.md`.
 
 ## Unresolved / deferred (not invented in this foundation)
 

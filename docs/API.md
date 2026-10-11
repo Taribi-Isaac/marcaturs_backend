@@ -707,7 +707,7 @@ Business/Admin campaign payloads include `cover_image`. Marketplace list/detail 
 
 Conversations are Business–Ambassador communication only (**one thread per pair**). They are not Campaign-scoped and do not require a Campaign or Deal. See [docs/chat.md](chat.md).
 
-Sending a message remains `POST /api/v1/conversations/{id}/messages` (`201`). After persist, the API attempts a private WebSocket event `message.created` on `conversation.{id}`. Channel auth: `POST /api/broadcasting/auth` with Sanctum (`auth:sanctum` + `account.access`). Broadcast failure does not fail the REST write. Local Reverb: `php artisan reverb:start`. Production WebSocket/ALB topology is pending.
+Sending a message remains `POST /api/v1/conversations/{id}/messages` (`201`). After persist, the API attempts a private WebSocket event `message.created` on `conversation.{id}`. Channel auth: `POST /api/broadcasting/auth` with Sanctum (`auth:sanctum` + `account.access`). Broadcast failure does not fail the REST write. Local Reverb: `php artisan reverb:start`. Production: `wss://ws.marcaturshub.com.ng` (see `docs/deployment/production.md`).
 
 | Method | Path | Auth | Role | Purpose |
 | --- | --- | --- | --- | --- |

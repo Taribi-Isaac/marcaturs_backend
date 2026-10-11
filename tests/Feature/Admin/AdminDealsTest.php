@@ -97,7 +97,30 @@ class AdminDealsTest extends TestCase
         $this->makeEvidence($deal, $ambassador, [
             'reference_number' => 'DEMO-TXN-SEARCH-42',
         ]);
-        $this->makeDeal(['status' => DealStatus::Cancelled, 'product_name' => 'Other']);
+        // Numeric search also substring-matches names, emails and titles, so the
+        // decoy deal must not carry random factory data that could contain the id.
+        $otherBusiness = User::factory()->business()->create([
+            'name' => 'Decoy Business',
+            'email' => 'decoy.business@example.com',
+        ]);
+        $otherAmbassador = User::factory()->ambassador()->create([
+            'name' => 'Decoy Ambassador',
+            'email' => 'decoy.ambassador@example.com',
+        ]);
+        $otherCampaign = Campaign::factory()->for($otherBusiness)->create([
+            'title' => 'Decoy Campaign',
+            'status' => CampaignStatus::Active,
+        ]);
+        $otherVersion = CampaignVersion::factory()->for($otherCampaign)->published()->create();
+        $otherCampaign->forceFill(['current_campaign_version_id' => $otherVersion->id])->save();
+        $this->makeDeal([
+            'business_user_id' => $otherBusiness->id,
+            'ambassador_user_id' => $otherAmbassador->id,
+            'campaign_id' => $otherCampaign->id,
+            'campaign_version_id' => $otherVersion->id,
+            'status' => DealStatus::Cancelled,
+            'product_name' => 'Other',
+        ]);
 
         Sanctum::actingAs(User::factory()->admin()->create());
 
