@@ -81,7 +81,7 @@ pull request to main → backend-checks.yml (the same Pint + PHPUnit; no secrets
 merge to main → tests (Pint + PHPUnit / typecheck + lint + vitest) → build artifact
 manual "Run workflow" (deploy = true) on main
   → GitHub Environment "production" approval (required reviewer)
-  → API: upload artifact → deploy.sh release [--migrate] → smoke
+  → API: configuration check → upload artifact → deploy.sh release [--migrate] → smoke
          → if the new release became current and a later step failed: deploy.sh rollback → smoke again
          → job summary: active release, deploy and rollback outcome
   → SPAs: guarded production build → wrangler pages deploy (Direct Upload)
@@ -130,6 +130,8 @@ EXPECT_HSTS=1 ./scripts/smoke.sh
 It checks health (database), security headers + HSTS, no `X-Powered-By`, `/up`, both SPA shells, CORS allows the app origin with credentials and rejects an unknown origin, and the Reverb WebSocket upgrade. Authenticated journeys follow the verification matrix in `production-checklist.md`.
 
 The WebSocket check fails closed: `WS_URL` without a non-empty `REVERB_APP_KEY` is a configuration error (exit 2) before any check runs, and the workflow sets `EXPECT_WS=1` so an empty `PRODUCTION_WS_URL` fails the same way. Exit codes: 0 passed, 1 a check failed, 2 configuration error. Regression harness: `scripts/tests/smoke-test.sh` (run by `tests/Feature/Deployment/SmokeScriptTest.php`).
+
+Because smoke only runs after activation (and a first release has no rollback target), the deploy job's "Require production configuration" step also validates `PRODUCTION_WS_URL` (`wss://<host>`) and the public `REVERB_APP_KEY` with `infra/lightsail/deploy-ci.sh check-config`, after environment approval but before anything is uploaded, migrated or activated. Errors name the variable, never its value; the Reverb secret is not used.
 
 ## 5. Production configuration rules
 

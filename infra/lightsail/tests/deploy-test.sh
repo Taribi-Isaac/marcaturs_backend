@@ -673,7 +673,7 @@ simulate() {
     SIM_JOB=failure
   fi
   SIM_ROLLBACK="$rb_out"
-  OUT="$(env RELEASE_ID="$id" MIGRATE="$migrate" RELEASE_OUTCOME="$rel_out" RELEASE_RC="$rel_rc" \
+  OUT="$(env CONFIG_OUTCOME=success RELEASE_ID="$id" MIGRATE="$migrate" RELEASE_OUTCOME="$rel_out" RELEASE_RC="$rel_rc" \
     SMOKE_OUTCOME="$smoke_out" DECIDE_REASON="$reason" ROLLBACK_OUTCOME="$rb_out" ROLLBACK_RC="$rb_rc" \
     POST_SMOKE_OUTCOME="$post_out" FINAL_CURRENT="$final" bash "$CI" summary)"
 }
@@ -736,6 +736,224 @@ simulate "$B" "$VALID" failure failure
 check "job fails" test "$SIM_JOB" = failure
 assert_out "POST-ROLLBACK SMOKE failure"
 assert_not_out "harness-dummy-key"
+
+# ---------------------------------------------------------------- pre-activation configuration check
+
+CFG_KEY="harness-public-reverb-key"
+CFG_SECRET="harness-reverb-secret-never-printed"
+CFG_SSH="harness-ssh-private-key-never-printed"
+CFG_DEFAULTS=(
+  "WS_URL=wss://ws.example.test"
+  "REVERB_APP_KEY=$CFG_KEY"
+  "REVERB_APP_SECRET=$CFG_SECRET"
+)
+CFG_STEP_DEFAULTS=(
+  "SSH_KEY=$CFG_SSH"
+  "KNOWN_HOSTS=ws.example.test ssh-ed25519 AAAAharness"
+  "HOST=203.0.113.10"
+  "USER=deploy"
+  "API_URL=https://api.example.test"
+)
+
+# cfg_env [-u NAME]... [NAME=value]...  prints the defaults minus each -u NAME, then the overrides.
+cfg_env() {
+  local drop=" " kv
+  while [[ $# -gt 0 && "$1" == -u ]]; do
+    drop="$drop$2 "
+    shift 2
+  done
+  for kv in "${CFG_DEFAULTS[@]}" "${CFG_STEP_DEFAULTS[@]}"; do
+    case "$drop" in *" ${kv%%=*} "*) ;; *) printf '%s\0' "$kv" ;; esac
+  done
+  for kv in "$@"; do printf '%s\0' "$kv"; done
+}
+
+# check_cfg [-u NAME]... [NAME=value]...  runs `deploy-ci.sh check-config` in a clean environment.
+check_cfg() {
+  local vars=()
+  while IFS= read -r -d '' kv; do vars+=("$kv"); done < <(cfg_env "$@")
+  OUT="$(env -i PATH="$PATH" "${vars[@]}" bash "$CI" check-config 2>&1)"
+  RC=$?
+}
+
+# Prints a workflow step's `run: |` body (indentation removed), found by its `id:`.
+step_run() {
+  awk -v id="        id: $1" '
+    $0 == id { f = 1; next }
+    f && /^      - / { exit }
+    f && /^        run: \|$/ { r = 1; next }
+    r { sub(/^          /, ""); print }' "$WORKFLOW"
+}
+
+# run_config_step [-u NAME]... [NAME=value]...  runs the workflow's real configuration step the way
+# GitHub does (bash --noprofile --norc -eo pipefail, repository root as working directory).
+run_config_step() {
+  local vars=() script="$WORK/config-step.sh"
+  step_run config >"$script"
+  while IFS= read -r -d '' kv; do vars+=("$kv"); done < <(cfg_env "$@")
+  OUT="$(cd "$REPO" && env -i PATH="$PATH" "${vars[@]}" bash --noprofile --norc -eo pipefail "$script" 2>&1)"
+  RC=$?
+}
+
+# No configured value reaches the output.
+assert_cfg_quiet() {
+  assert_not_out "$CFG_KEY"
+  assert_not_out "$CFG_SECRET"
+  assert_not_out "$CFG_SSH"
+  assert_not_out "ws.example.test"
+}
+
+fresh "config: valid WebSocket URL and public key pass"
+check_cfg
+assert_rc 0
+check "no error annotation" test -z "$OUT"
+check_cfg WS_URL=wss://ws.example.test/
+assert_rc 0
+
+fresh "config: the Reverb secret is neither required nor read"
+check_cfg -u REVERB_APP_SECRET
+assert_rc 0
+check "deploy-ci.sh never reads REVERB_APP_SECRET" bash -c '! grep -qE "\\\$\{?REVERB_APP_SECRET" "$1"' _ "$CI"
+check "deploy-ci.sh has no shell tracing" bash -c '! grep -qE "set -[a-z]*x" "$1"' _ "$CI"
+
+fresh "config: missing REVERB_APP_KEY fails"
+check_cfg -u REVERB_APP_KEY
+assert_rc 1
+assert_out "::error::Missing REVERB_APP_KEY in environment 'production'"
+assert_out "never REVERB_APP_SECRET"
+assert_cfg_quiet
+
+for value in "" "   " "$(printf '\t')" "$(printf ' \t ')"; do
+  fresh "config: empty or whitespace-only REVERB_APP_KEY fails (length ${#value})"
+  check_cfg "REVERB_APP_KEY=$value"
+  assert_rc 1
+  assert_out "::error::Missing REVERB_APP_KEY in environment 'production'"
+  assert_cfg_quiet
+done
+
+for value in " $CFG_KEY" "$CFG_KEY " "\"$CFG_KEY\"" "$CFG_KEY/x" "$CFG_KEY?x=1"; do
+  fresh "config: malformed REVERB_APP_KEY fails without echoing it"
+  check_cfg "REVERB_APP_KEY=$value"
+  assert_rc 1
+  assert_out "::error::REVERB_APP_KEY must contain only letters, digits, '-' or '_'"
+  assert_cfg_quiet
+done
+
+fresh "config: missing PRODUCTION_WS_URL fails"
+check_cfg -u WS_URL
+assert_rc 1
+assert_out "::error::Missing PRODUCTION_WS_URL in environment 'production'"
+assert_cfg_quiet
+
+for value in "" "  "; do
+  fresh "config: empty or whitespace-only PRODUCTION_WS_URL fails (length ${#value})"
+  check_cfg "WS_URL=$value"
+  assert_rc 1
+  assert_out "::error::Missing PRODUCTION_WS_URL in environment 'production'"
+done
+
+for value in https://ws.example.test ws://ws.example.test wss:// wss://ws.example.test:8080 \
+  wss://ws.example.test/app "wss://ws.example.test?x=1" " wss://ws.example.test" "wss://ws.example.test " \
+  "wss://ws example.test" wss://-ws.example.test ws.example.test; do
+  fresh "config: invalid PRODUCTION_WS_URL '$value' fails without echoing it"
+  check_cfg "WS_URL=$value"
+  assert_rc 1
+  assert_out "::error::PRODUCTION_WS_URL must look like wss://<host>"
+  assert_cfg_quiet
+done
+
+fresh "config: every problem is reported in one run"
+check_cfg -u WS_URL -u REVERB_APP_KEY
+assert_rc 1
+assert_out "Missing PRODUCTION_WS_URL"
+assert_out "Missing REVERB_APP_KEY"
+
+fresh "config step: the real workflow step passes a complete configuration"
+run_config_step
+assert_rc 0
+assert_cfg_quiet
+
+fresh "config step: the real workflow step fails on a missing REVERB_APP_KEY"
+run_config_step -u REVERB_APP_KEY
+assert_rc 1
+assert_out "::error::Missing REVERB_APP_KEY in environment 'production'"
+assert_cfg_quiet
+
+fresh "config step: the real workflow step fails on a whitespace-only REVERB_APP_KEY"
+run_config_step "REVERB_APP_KEY=  "
+assert_rc 1
+assert_out "Missing REVERB_APP_KEY"
+
+fresh "config step: the real workflow step fails on a missing or invalid PRODUCTION_WS_URL"
+run_config_step -u WS_URL
+assert_rc 1
+assert_out "::error::Missing PRODUCTION_WS_URL in environment 'production'"
+run_config_step WS_URL=https://ws.example.test
+assert_rc 1
+assert_out "PRODUCTION_WS_URL must look like wss://<host>"
+assert_cfg_quiet
+
+fresh "config step: existing SSH/API checks still run and report alongside Reverb"
+run_config_step -u SSH_KEY -u API_URL -u REVERB_APP_KEY
+assert_rc 1
+assert_out "::error::Missing SSH_KEY in environment 'production'"
+assert_out "::error::Missing API_URL in environment 'production'"
+assert_out "::error::Missing REVERB_APP_KEY in environment 'production'"
+assert_cfg_quiet
+
+# Ordered step labels (name, or uses for unnamed steps) of the deploy job.
+deploy_steps() {
+  awk '/^  deploy:$/ { f = 1; next } f && /^  [a-z]/ { exit }
+    f && /^      - (name|uses): / { sub(/^      - (name|uses): /, ""); print }' "$WORKFLOW"
+}
+step_pos() { deploy_steps | grep -nxF -- "$1" | head -1 | cut -d: -f1; }
+# Prints a deploy-job step from its `- name:` / `- uses:` line up to the next step.
+step_block() {
+  awk -v label="$1" '/^  deploy:$/ { d = 1; next } d && /^  [a-z]/ { exit }
+    d && /^      - / { line = $0; sub(/^      - (name|uses): /, "", line); f = (line == label); if (f) { print; next } }
+    d && f' "$WORKFLOW"
+}
+before() { local a b; a="$(step_pos "$1")"; b="$(step_pos "$2")"; [[ -n "$a" && -n "$b" && "$a" -lt "$b" ]]; }
+
+fresh "workflow: configuration check runs before upload, migration and activation"
+check "steps before it are only checkout and the migration gate" \
+  test "$(deploy_steps | sed -n "1,$(($(step_pos "Require production configuration") - 1))p" | tr '\n' '|')" = "actions/checkout@v4|Migration gate|"
+check "config before artifact download" before "Require production configuration" "actions/download-artifact@v4"
+check "artifact download before SSH setup" before "actions/download-artifact@v4" "Configure SSH"
+check "SSH setup before Release" before "Configure SSH" "Release"
+check "Release before Smoke" before "Release" "Smoke"
+for step in "actions/download-artifact@v4" "Configure SSH" "Release" "Smoke"; do
+  check "'$step' has no if: (GitHub skips it after a failed step)" bash -c '! grep -qE "^        if:" <<<"$1"' _ "$(step_block "$step")"
+done
+release_block="$(step_block "Release")"
+for marker in "scp " "deploy.sh release" "MIGRATE_FLAG" "install -m 755 /tmp/deploy.sh"; do
+  check "only Release uses '$marker'" test "$(grep -cF -- "$marker" "$WORKFLOW")" = "$(grep -cF -- "$marker" <<<"$release_block")"
+done
+check "only Configure SSH writes the deploy key" \
+  test "$(grep -cF -- '> ~/.ssh/id_deploy' "$WORKFLOW")" = "$(grep -cF -- '> ~/.ssh/id_deploy' <<<"$(step_block "Configure SSH")")"
+summary_block="$(step_block "Deployment summary")"
+check "summary only contacts the server once the deploy key exists" grep -qF '[ -f ~/.ssh/id_deploy ]' <<<"$summary_block"
+check "summary only runs the read-only status command" \
+  test "$(grep -c 'deploy.sh' <<<"$summary_block")" = "$(grep -c 'deploy.sh status' <<<"$summary_block")"
+check "summary receives the configuration outcome" grep -qF 'CONFIG_OUTCOME: ${{ steps.config.outcome }}' <<<"$summary_block"
+config_block="$(step_block "Require production configuration")"
+check "config step has id: config" grep -qxF "        id: config" <<<"$config_block"
+check "config step reads WS_URL from PRODUCTION_WS_URL" grep -qF 'WS_URL: ${{ vars.PRODUCTION_WS_URL }}' <<<"$config_block"
+check "config step reads the public REVERB_APP_KEY variable" grep -qF 'REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}' <<<"$config_block"
+check "config step runs deploy-ci.sh check-config" grep -qF 'bash infra/lightsail/deploy-ci.sh check-config' <<<"$config_block"
+check "config step never reads a Reverb secret" bash -c '! grep -qE "REVERB_APP_SECRET|secrets\.REVERB" <<<"$1"' _ "$config_block"
+
+fresh "workflow: configuration failure is reported as nothing changed"
+run_config_step -u REVERB_APP_KEY
+check "config step fails" test "$RC" -ne 0
+OUT="$(env CONFIG_OUTCOME=failure RELEASE_ID="$A" MIGRATE=true RELEASE_OUTCOME=skipped \
+  SMOKE_OUTCOME=skipped FINAL_CURRENT=unknown bash "$CI" summary)"
+assert_out "FAILED BEFORE RELEASE: production configuration is missing or invalid"
+assert_out "Nothing was uploaded, migrated or activated."
+assert_out "| Configuration check | failure | |"
+assert_out "| Release \`$A\` | skipped |"
+assert_not_out "never reversed automatically"
+assert_not_out "$CFG_KEY"
 
 # ---------------------------------------------------------------- workflow wiring (static)
 
