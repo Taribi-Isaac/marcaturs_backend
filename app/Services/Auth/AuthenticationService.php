@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Enums\AccountStatus;
+use App\Enums\RegistrationMode;
 use App\Enums\Role;
 use App\Models\User;
 use App\Support\Api\ApiErrorCode;
@@ -18,18 +19,24 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthenticationService
 {
+    public function __construct(
+        private readonly RegistrationApprovalService $approvals,
+    ) {}
+
     /**
      * @return array{user: User, token: string}
      */
     public function register(string $name, string $email, string $password, Role $role): array
     {
-        $user = new User;
-        $user->name = $name;
-        $user->email = $email;
-        $user->password = $password;
-        $user->role = $role;
-        $user->status = AccountStatus::Active;
-        $user->save();
+        $user = RegistrationMode::current() === RegistrationMode::Allowlist
+            ? DB::transaction(function () use ($name, $email, $password, $role): User {
+                $approval = $this->approvals->claimForRegistration($email, $role);
+                $user = $this->createParticipant($name, $email, $password, $role);
+                $this->approvals->recordConsumption($approval, $user);
+
+                return $user;
+            })
+            : $this->createParticipant($name, $email, $password, $role);
 
         $user->sendEmailVerificationNotification();
 
@@ -129,6 +136,19 @@ class AuthenticationService
             'user' => $user->refresh(),
             'token' => $plainTextToken,
         ];
+    }
+
+    private function createParticipant(string $name, string $email, string $password, Role $role): User
+    {
+        $user = new User;
+        $user->name = $name;
+        $user->email = $email;
+        $user->password = $password;
+        $user->role = $role;
+        $user->status = AccountStatus::Active;
+        $user->save();
+
+        return $user;
     }
 
     private function rejectInvalidCredentials(): never

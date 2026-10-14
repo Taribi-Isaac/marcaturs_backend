@@ -19,6 +19,7 @@ Legend — **Req**: production breaks or is insecure without it. **Opt**: safe d
 | `ADMIN_FRONTEND_URL` | Req | no | `https://admin.marcaturshub.com.ng` | Staff invitation links (otherwise falls back to `FRONTEND_URL`); also the default Admin origin for Option A |
 | `ADMIN_ALLOWED_ORIGINS` | Opt | no | unset (defaults to `ADMIN_FRONTEND_URL`) | Comma-separated exact origins accepted for cookie-authenticated `/api/v1/admin/*` requests (`EnsureAdminOrigin`). Empty in production rejects them all |
 | `ADMIN_URL` | Opt | no | `https://admin.marcaturshub.com.ng` | Local-only Reverb fallback; harmless in production |
+| `REGISTRATION_MODE` | Opt | no | unset (= `open`) until a separately authorized activation sets `allowlist` | Participant registration policy (MH-OPS-031). `allowlist` requires a SUPER_ADMIN approval per email + role. Unknown or empty values fail closed to `allowlist`. Requires `config:cache` rebuild + PHP-FPM reload to take effect. See `docs/registration-approvals.md` |
 | `LOG_CHANNEL` / `LOG_STACK` | Req | no | `stack` / `daily` | Files in `shared/storage/logs`, redaction processor attached |
 | `LOG_LEVEL` | Opt | no | `info` | |
 | `LOG_DAILY_DAYS` | Opt | no | `14` | Log retention on disk |

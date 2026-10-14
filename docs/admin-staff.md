@@ -54,6 +54,7 @@ Service-layer transactional rule: cannot demote/disable the last **effective** S
 - `admin_staff_events` for invite/revoke/accept/role/disable/restore
 - `campaign_admin_events` for Admin campaign lifecycle actions
 - `certification_admin_events` for certification programme/version lifecycle (MH-BE-CERT-01)
+- `registration_approval_events` for registration approval create/revoke/consume (MH-OPS-031)
 - Existing verification/dispute/user status actor fields unchanged
 
 ## Certification permissions (MH-BE-CERT-01)
@@ -65,6 +66,14 @@ Service-layer transactional rule: cannot demote/disable the last **effective** S
 | `certification.learners.view` | ✓ | ✓ | — | — |
 
 See [certification-programmes.md](certification-programmes.md).
+
+## Registration approvals permission (MH-OPS-031)
+
+| Permission | SUPER_ADMIN | OPERATIONS | VERIFICATION | MODERATION |
+|------------|:-----------:|:----------:|:------------:|:----------:|
+| `registration_approvals.manage` | ✓ | — | — | — |
+
+One permission covers list, detail, create and revoke. See [registration-approvals.md](registration-approvals.md).
 
 ## Admin UI
 

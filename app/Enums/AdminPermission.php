@@ -22,6 +22,7 @@ enum AdminPermission: string
     case CertificationView = 'certification.view';
     case CertificationManage = 'certification.manage';
     case CertificationLearnersView = 'certification.learners.view';
+    case RegistrationApprovalsManage = 'registration_approvals.manage';
 
     /**
      * @return list<string>
