@@ -4,6 +4,7 @@ name: Production
 #
 # push to main      → test + build release artifact (no deploy)
 # manual dispatch   → test + build → GitHub Environment "production" approval
+#                     → configuration check (SSH, API and the smoke step's WS_URL / REVERB_APP_KEY)
 #                     → upload + release on Lightsail → smoke
 #                     → automatic code rollback (+ smoke) only if the new release became current
 #                       and a later step failed; job summary reports the active release
@@ -97,18 +98,24 @@ jobs:
           echo "::error::Migrations requested without confirming a fresh database snapshot / restore point."
           exit 1
 
+      # Runs before anything is uploaded, migrated or activated. Smoke (after activation) needs
+      # WS_URL and REVERB_APP_KEY, and a first release has no rollback target, so check them here.
       - name: Require production configuration
+        id: config
         env:
           SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.LIGHTSAIL_SSH_KNOWN_HOSTS }}
           HOST: ${{ vars.LIGHTSAIL_HOST }}
           USER: ${{ vars.LIGHTSAIL_USER }}
           API_URL: ${{ vars.PRODUCTION_API_URL }}
+          WS_URL: ${{ vars.PRODUCTION_WS_URL }}
+          REVERB_APP_KEY: ${{ vars.REVERB_APP_KEY }}
         run: |
           missing=0
           for name in SSH_KEY KNOWN_HOSTS HOST USER API_URL; do
             if [ -z "${!name}" ]; then echo "::error::Missing $name in environment 'production'"; missing=1; fi
           done
+          bash infra/lightsail/deploy-ci.sh check-config || missing=1
           exit "$missing"
 
       - uses: actions/download-artifact@v4
@@ -233,6 +240,7 @@ jobs:
         if: always()
         env:
           TARGET: ${{ vars.LIGHTSAIL_USER }}@${{ vars.LIGHTSAIL_HOST }}
+          CONFIG_OUTCOME: ${{ steps.config.outcome }}
           RELEASE_ID: ${{ needs.build.outputs.release_id }}
           MIGRATE: ${{ inputs.migrate }}
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
