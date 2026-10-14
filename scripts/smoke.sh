@@ -39,18 +39,31 @@ if [[ -n "${WS_URL:-}" && -z "${REVERB_APP_KEY//[[:space:]]/}" ]]; then
 fi
 
 # RFC 6455 §4.1: Sec-WebSocket-Key must be a fresh base64-encoded 16-byte nonce (Reverb answers
-# anything else with 400). The server proves it read the key via Sec-WebSocket-Accept (§4.2.2).
-WS_GUID="258EAFA5-E914-47DA-95CA-C5AB0DC11B65"
+# anything else with 400). §4.2.2: Sec-WebSocket-Accept = base64(SHA-1(key + GUID)).
+WS_GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 WS_KEY_PATTERN='^[A-Za-z0-9+/]{21}[AQgw]==$'
+WS_ACCEPT_PATTERN='^[A-Za-z0-9+/]{27}=$'
+ws_accept() { printf '%s' "$1$WS_GUID" | openssl dgst -sha1 -binary | openssl base64 -A; }
 WS_NONCE=""
+WS_EXPECTED=""
 if [[ -n "${WS_URL:-}" ]]; then
   if ! command -v openssl >/dev/null 2>&1; then
     echo "smoke configuration error: openssl is required to generate the WebSocket handshake key."
     exit 2
   fi
+  # Known-answer test from RFC 6455 §1.3, so a wrong GUID or broken openssl fails before any check.
+  if [[ "$(ws_accept dGhlIHNhbXBsZSBub25jZQ== 2>/dev/null || true)" != "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=" ]]; then
+    echo "smoke configuration error: Sec-WebSocket-Accept self-test failed (RFC 6455 §1.3 example); check openssl."
+    exit 2
+  fi
   WS_NONCE="$(openssl rand -base64 16 2>/dev/null || true)"
   if [[ ! "$WS_NONCE" =~ $WS_KEY_PATTERN ]]; then
     echo "smoke configuration error: could not generate a valid WebSocket handshake key (base64 of 16 random bytes)."
+    exit 2
+  fi
+  WS_EXPECTED="$(ws_accept "$WS_NONCE" 2>/dev/null || true)"
+  if [[ ! "$WS_EXPECTED" =~ $WS_ACCEPT_PATTERN ]]; then
+    echo "smoke configuration error: could not compute the expected Sec-WebSocket-Accept; check openssl."
     exit 2
   fi
 fi
@@ -153,19 +166,41 @@ if [[ -n "${WS_URL:-}" ]]; then
   [[ "$WS_RC" -eq 0 || "$WS_RC" -eq 28 ]] || ws_fail "connection error after the handshake (curl exit $WS_RC)"
   WS_HEADERS="$(tr -d '\r' <"$HDR_FILE")"
   grep -qiE '^Upgrade:[[:space:]]*websocket[[:space:]]*$' <<<"$WS_HEADERS" || ws_fail "response has no 'Upgrade: websocket' header"
-  grep -qiE '^Connection:.*upgrade' <<<"$WS_HEADERS" || ws_fail "response has no 'Connection: Upgrade' header"
+  grep -qiE '^Connection:(.*,)?[[:space:]]*upgrade[[:space:]]*(,|$)' <<<"$WS_HEADERS" || ws_fail "response has no 'Connection: Upgrade' header"
   WS_ACCEPT="$(grep -iE '^Sec-WebSocket-Accept:' <<<"$WS_HEADERS" | head -1 | cut -d: -f2- | tr -d '[:space:]' || true)"
-  WS_EXPECTED="$(printf '%s' "$WS_NONCE$WS_GUID" | openssl dgst -sha1 -binary | openssl base64 -A)"
   [[ -n "$WS_ACCEPT" && "$WS_ACCEPT" == "$WS_EXPECTED" ]] || ws_fail "Sec-WebSocket-Accept is missing or does not match the handshake key"
-  # First server frame: FIN + text opcode (0x81), unmasked (§5.1), carrying the Pusher event.
-  read -r WS_B0 WS_B1 _ <<<"$(od -An -tx1 -N2 "$BODY_FILE")" || true
-  [[ "${WS_B0:-}" == 81 && -n "${WS_B1:-}" ]] && ((16#$WS_B1 < 128)) || ws_fail "no unmasked WebSocket text frame received within 5s"
-  if ! grep -aqE '"event"[[:space:]]*:[[:space:]]*"pusher:connection_established"' "$BODY_FILE"; then
-    if grep -aqE '"event"[[:space:]]*:[[:space:]]*"pusher:error"' "$BODY_FILE"; then
-      ws_fail "Reverb sent pusher:error $(grep -aoE 'code[^0-9]{1,4}[0-9]{4}' "$BODY_FILE" | grep -oE '[0-9]{4}' | head -1)"
-    fi
-    ws_fail "first frame is not pusher:connection_established"
+
+  # First server frame only (§5.2): FIN=1, RSV=0, opcode=1 (0x81); unmasked (§5.1); 7-bit or
+  # 16-bit payload length. A Pusher event is a small single frame, so a 64-bit length is rejected.
+  WS_SIZE="$(wc -c <"$BODY_FILE" | tr -d ' ')"
+  [[ "$WS_SIZE" -gt 0 ]] || ws_fail "no WebSocket frame received within 5s"
+  read -r WS_B0 WS_B1 WS_B2 WS_B3 _ <<<"$(od -An -v -tu1 -N4 "$BODY_FILE")" || true
+  [[ "${WS_B0:-}" == 129 ]] || ws_fail "first frame is not a single unfragmented text frame (byte 0 = ${WS_B0:-none})"
+  [[ -n "${WS_B1:-}" ]] || ws_fail "first frame is truncated"
+  [[ "$WS_B1" -lt 128 ]] || ws_fail "first frame is masked (servers must not mask, RFC 6455 §5.1)"
+  WS_LEN="$WS_B1"
+  WS_OFF=2
+  if [[ "$WS_LEN" -eq 127 ]]; then
+    ws_fail "first frame uses a 64-bit length; not a Pusher connection event"
+  elif [[ "$WS_LEN" -eq 126 ]]; then
+    [[ -n "${WS_B3:-}" ]] || ws_fail "first frame is truncated"
+    WS_LEN=$((WS_B2 * 256 + WS_B3))
+    WS_OFF=4
   fi
+  [[ "$WS_SIZE" -ge $((WS_OFF + WS_LEN)) ]] || ws_fail "first frame is truncated"
+  WS_PAYLOAD="$(head -c $((WS_OFF + WS_LEN)) "$BODY_FILE" | tail -c +$((WS_OFF + 1)))"
+  [[ "$WS_PAYLOAD" == "{"*"}" ]] || ws_fail "first frame payload is not a JSON object"
+  # Top-level "event" keys only: Pusher nests "data" as a JSON string, so inner quotes are escaped.
+  WS_EVENT="$(grep -oE '"event"[[:space:]]*:[[:space:]]*"[^"\\]*"' <<<"$WS_PAYLOAD" | sed -E 's/^.*"([^"]*)"$/\1/' || true)"
+  if [[ "$WS_EVENT" != "pusher:connection_established" ]]; then
+    if [[ "$WS_EVENT" == "pusher:error" ]]; then
+      ws_fail "Reverb sent pusher:error $(grep -oE 'code[^0-9]{1,4}[0-9]{4}' <<<"$WS_PAYLOAD" | grep -oE '[0-9]{4}' | head -1 || true)"
+    fi
+    ws_fail "first frame event is '$(printf '%s' "${WS_EVENT:-none}" | tr '\n' ' ' | cut -c1-60)', expected pusher:connection_established"
+  fi
+  grep -qE '"data"[[:space:]]*:[[:space:]]*"' <<<"$WS_PAYLOAD" || ws_fail "pusher:connection_established data is not a JSON-encoded string"
+  grep -qE '\\"socket_id\\"[[:space:]]*:[[:space:]]*\\"[0-9]+\.[0-9]+\\"' <<<"$WS_PAYLOAD" ||
+    ws_fail "pusher:connection_established carries no socket_id"
   echo "Reverb: pusher:connection_established"
 fi
 
