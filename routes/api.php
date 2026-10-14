@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminConversationController;
 use App\Http\Controllers\Api\V1\Admin\AdminDealController;
 use App\Http\Controllers\Api\V1\Admin\AdminDisputeController;
 use App\Http\Controllers\Api\V1\Admin\AdminOverviewController;
+use App\Http\Controllers\Api\V1\Admin\AdminRegistrationApprovalController;
 use App\Http\Controllers\Api\V1\Admin\AdminStaffController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
@@ -342,6 +343,20 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
                 ->middleware('throttle:registration')
                 ->name('direct');
         });
+
+        Route::middleware(['role:ADMIN', 'admin.origin', 'permission:registration_approvals.manage'])
+            ->prefix('admin/registration-approvals')
+            ->name('admin.registration-approvals.')
+            ->group(function (): void {
+                Route::get('/', [AdminRegistrationApprovalController::class, 'index'])->name('index');
+                Route::post('/', [AdminRegistrationApprovalController::class, 'store'])->name('store');
+                Route::get('/{approval}', [AdminRegistrationApprovalController::class, 'show'])
+                    ->whereNumber('approval')
+                    ->name('show');
+                Route::post('/{approval}/revoke', [AdminRegistrationApprovalController::class, 'revoke'])
+                    ->whereNumber('approval')
+                    ->name('revoke');
+            });
 
         Route::middleware(['role:ADMIN', 'admin.origin', 'permission:users.view'])->prefix('admin/users')->name('admin.users.')->group(function (): void {
             Route::get('/', [AdminUserController::class, 'index'])->name('index');

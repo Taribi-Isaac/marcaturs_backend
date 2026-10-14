@@ -96,6 +96,10 @@
     {
       "key": "featuredPackageId",
       "value": "1"
+    },
+    {
+      "key": "registrationApprovalId",
+      "value": ""
     }
   ],
   "item": [
@@ -1671,6 +1675,100 @@
             },
             "url": "{{baseUrl}}/api/v1/admin/staff/direct",
             "description": "Blocked in production."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registration Approvals",
+      "description": "MH-OPS-031. Pre-approved email + role allow-list for participant registration. SUPER_ADMIN only (permission registration_approvals.manage). Enforced at POST /auth/register only when REGISTRATION_MODE=allowlist. No invitation email is sent.",
+      "item": [
+        {
+          "name": "List Registration Approvals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/registration-approvals?status=pending&per_page=15",
+            "description": "Filters: status (pending|consumed|revoked), role (BUSINESS|AMBASSADOR), q (email contains)."
+          }
+        },
+        {
+          "name": "Create Registration Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"pilot.business@example.com\",\n  \"role\": \"BUSINESS\",\n  \"note\": \"Pilot cohort A\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/registration-approvals",
+            "description": "400 if the email already has an account or a pending/used approval. Roles other than BUSINESS/AMBASSADOR are rejected."
+          }
+        },
+        {
+          "name": "Show Registration Approval",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/admin/registration-approvals/{{registrationApprovalId}}",
+            "description": "Includes up to 50 audit events (created, revoked, consumed)."
+          }
+        },
+        {
+          "name": "Revoke Registration Approval",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Participant withdrew from the pilot\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/admin/registration-approvals/{{registrationApprovalId}}/revoke",
+            "description": "Pending approvals only. 422 if already used or already revoked."
           }
         }
       ]

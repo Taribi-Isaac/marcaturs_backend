@@ -45,6 +45,10 @@ class AdminPermissionMatrixTest extends TestCase
             'ops certification learners' => [AdminStaffRole::Operations, AdminPermission::CertificationLearnersView, true],
             'verification certification denied' => [AdminStaffRole::Verification, AdminPermission::CertificationManage, false],
             'moderation certification denied' => [AdminStaffRole::Moderation, AdminPermission::CertificationView, false],
+            'super admin registration approvals' => [AdminStaffRole::SuperAdmin, AdminPermission::RegistrationApprovalsManage, true],
+            'ops registration approvals denied' => [AdminStaffRole::Operations, AdminPermission::RegistrationApprovalsManage, false],
+            'verification registration approvals denied' => [AdminStaffRole::Verification, AdminPermission::RegistrationApprovalsManage, false],
+            'moderation registration approvals denied' => [AdminStaffRole::Moderation, AdminPermission::RegistrationApprovalsManage, false],
         ];
     }
 }

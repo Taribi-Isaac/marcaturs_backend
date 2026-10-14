@@ -139,6 +139,8 @@ Public registration accepts only `BUSINESS` or `AMBASSADOR`. Sending `role=ADMIN
 }
 ```
 
+**Registration mode (MH-OPS-031):** `REGISTRATION_MODE=open` (default) accepts any valid BUSINESS/AMBASSADOR registration. `REGISTRATION_MODE=allowlist` additionally requires a pending SUPER_ADMIN approval for the exact normalized email **and** role; otherwise the API returns `403` `forbidden` with the same message for unapproved emails, wrong-role attempts, and revoked or used approvals, before any user, token, session or email is created. Existing validation (including duplicate-email `400`) still runs first. See [registration-approvals.md](registration-approvals.md).
+
 Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`. Registration issues a Sanctum token immediately and sends an email-verification notification. **MH-GATE-006:** email verification is a mandatory product-access gate for BUSINESS and AMBASSADOR accounts. Unverified participants may authenticate (`/auth/me`, logout, change-password, resend verification) but other authenticated product APIs return `403` with a verify-email message. Admin staff are exempt. `email_verified_at` remains on user payloads. Email verification is **not** participant Verification, Certification, or reputation.
 
 ### Login
@@ -273,6 +275,21 @@ Auth: Sanctum + `account.access` + `role:ADMIN` + `permission:staff.view|staff.m
 | `POST` | `/api/v1/auth/staff-invitations/accept` | public | Accept invite + set password |
 
 `GET /auth/me` for ADMIN includes `staff_role` and `permissions[]`. Existing Admin route groups require the matching domain permission (see admin-staff.md).
+
+## Registration approvals (MH-OPS-031)
+
+Pre-approved email + role allow-list used when `REGISTRATION_MODE=allowlist`. SUPER_ADMIN only.
+
+Auth: Sanctum + `account.access` + `email.verified` + `role:ADMIN` + `admin.origin` + `permission:registration_approvals.manage`.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/admin/registration-approvals` | List (filters `status`, `role`, `q` email search; paginated) |
+| `POST` | `/api/v1/admin/registration-approvals` | Create `{ email, role: BUSINESS\|AMBASSADOR, note? }` → `201` |
+| `GET` | `/api/v1/admin/registration-approvals/{id}` | Detail + up to 50 audit events |
+| `POST` | `/api/v1/admin/registration-approvals/{id}/revoke` | Revoke a pending approval `{ reason? }` |
+
+Errors: `400` invalid email/role, existing account, or an existing pending/used approval for the email; `422` revoking a used or already-revoked approval; `404` unknown id. Full lifecycle and audit details: [registration-approvals.md](registration-approvals.md).
 
 ## Certification programmes (MH-BE-CERT-01)
 
