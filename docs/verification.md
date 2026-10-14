@@ -10,7 +10,7 @@ MarcatursHub verification is a trust process that sits after identity (User) and
 
 `VERIFIED` is not an endorsement or a financial/legal guarantee.
 
-Email verification (`email_verified_at`) is separate from this checklist. It is implemented for account contact trust but does **not** gate normal product API access (see account-status middleware).
+Email verification (`email_verified_at`) is separate from this checklist. It is a mandatory account-access gate: unverified BUSINESS and AMBASSADOR accounts are blocked from product APIs, including this checklist, by the `email.verified` middleware until they verify (see `docs/API.md`, Email verification). Approving checklist submissions never sets `email_verified_at`.
 
 `phone` and `email` requirement types collect participant-provided values as text-like submissions. They are **not** platform OTP/SMS challenges.
 
@@ -31,4 +31,3 @@ Private disk `sensitive` (local path `storage/app/private/sensitive`). Downloads
 - Automated retention purge (config key only)
 - Legal/compliance rules pending external counsel
 - Phone/SMS OTP providers
-- Making email verification a universal account-access gate (product decision)

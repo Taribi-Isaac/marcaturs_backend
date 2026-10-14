@@ -127,7 +127,9 @@ SPA browsers should still call `GET /sanctum/csrf-cookie` before cookie-based lo
 
 ### Registration
 
-Public registration accepts only `BUSINESS` or `AMBASSADOR`. Sending `role=ADMIN` is a validation error and does not create a user.
+Registration is open: anyone may register as `BUSINESS` or `AMBASSADOR` without invitation or pre-approval. Public registration accepts only those two roles. A missing role or any other value (including `ADMIN`, `SUPER_ADMIN` or staff role names) is a `400` validation error and does not create a user. Extra fields such as `status`, `email_verified_at`, `staff_role` or `permissions` are ignored.
+
+One email address holds one account across all roles. Emails are trimmed and lower-cased before validation, so `Ada@Example.com ` and `ada@example.com` are the same address. Registering an email that already belongs to any account (Business, Ambassador or Admin) returns `400` `validation_error` with `details.email = ["The email has already been taken."]`; the response does not reveal the existing account's role, status or verification state. Two simultaneous registrations for the same email are resolved by the `users.email` unique index: one succeeds and the other receives the same `400` response, with no partial account or token.
 
 ```json
 {
@@ -185,7 +187,7 @@ Valid signature + matching email hash marks `email_verified_at`. Invalid/expired
 
 JSON clients (`Accept: application/json` / `getJson`) receive the success envelope. Browser navigations (non-JSON Accept) redirect to `FRONTEND_URL/login?email_verified=1` when `FRONTEND_URL` is set.
 
-Email verification is **implemented and sent on registration**. From MH-GATE-006, middleware `email.verified` blocks BUSINESS/AMBASSADOR product routes until `email_verified_at` is set. Allowed while unverified: `/auth/me`, logout, change-password, and resend verification. Existing seed/demo accounts are created **verified** (`UserFactory` default and DevelopmentScenarioSeeder). Accounts already in a database with `email_verified_at = null` will be gated until they verify — no fabricated timestamps are written by migration. Admin accounts are exempt. Participant Verification checklists remain a separate trust system.
+Email verification is **implemented and sent on registration**. From MH-GATE-006, middleware `email.verified` blocks BUSINESS/AMBASSADOR product routes until `email_verified_at` is set. Allowed while unverified: `/auth/me` (so the client can show the verification state), logout, change-password (so a user can still secure a compromised account), and resend verification (so the user can complete verification). The signed verification link itself is not behind login. Registering, logging in, completing a profile or opening any frontend page never sets `email_verified_at`; only the signed link does. Existing seed/demo accounts are created **verified** (`UserFactory` default and DevelopmentScenarioSeeder). Accounts already in a database with `email_verified_at = null` will be gated until they verify — no fabricated timestamps are written by migration. Admin accounts are exempt. Participant Verification checklists remain a separate trust system.
 
 `POST /api/v1/auth/email/verification-notification` (authenticated) resends the verification email for the current user. Already-verified users receive a success payload with `already_verified: true` and no new mail. Restricted accounts may resend; suspended/banned accounts cannot (existing `account.access` policy). Rate-limited by `email-verification`.
 
