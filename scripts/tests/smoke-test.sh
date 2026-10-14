@@ -51,7 +51,7 @@ mkdir -p "$STUB_BIN"
 cat >"$STUB_BIN/curl" <<'EOF'
 #!/usr/bin/env bash
 echo "curl $*" >>"$STUB_LOG"
-dump="" out="" fmt="" method=GET origin="" upgrade="" url=""
+dump="" out="" fmt="" method=GET origin="" upgrade="" wskey="" url=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -D) dump="$2"; shift 2 ;;
@@ -63,6 +63,7 @@ while [ $# -gt 0 ]; do
       case "$2" in
         "Origin: "*) origin="${2#Origin: }" ;;
         "Upgrade: websocket") upgrade=1 ;;
+        "Sec-WebSocket-Key: "*) wskey="${2#Sec-WebSocket-Key: }" ;;
       esac
       shift 2 ;;
     -sS | -fsS | --http1.1) shift ;;
@@ -83,12 +84,40 @@ host="${url#*://}"
 host="${host%%/*}"
 path="/${url#*://*/}"
 
+# Behaves like Reverb behind Nginx. After a 101 the socket stays open, so real curl reads the
+# first frame as the body and then exits 28 at --max-time.
 if [ -n "$upgrade" ]; then
   [ "$host" = ws.example.test ] || { echo "curl stub: WebSocket request to unexpected host $host" >&2; exit 99; }
   if fails ws-refused; then echo "curl: (7) Failed to connect to $host port 443" >&2; exit 7; fi
+  if fails ws-timeout; then echo "curl: (28) Operation timed out after 5001 milliseconds with 0 bytes received" >&2; exit 28; fi
   if fails ws-502; then headers "HTTP/1.1 502 Bad Gateway" "Server: nginx"; exit 0; fi
-  headers "HTTP/1.1 101 Switching Protocols" "Upgrade: websocket" "Connection: Upgrade"
-  exit 0
+  # Reverb rejects any key that is not a base64-encoded 16-byte nonce; Nginx then holds the connection.
+  if fails ws-reject-key || [ "$(printf '%s' "$wskey" | openssl base64 -d -A 2>/dev/null | wc -c | tr -d ' ')" != 16 ]; then
+    headers "HTTP/1.1 400 Invalid Sec-WebSocket-Key" "X-Powered-By: Laravel Reverb"
+    exit 28
+  fi
+  accept="$(printf '%s' "${wskey}258EAFA5-E914-47DA-95CA-C5AB0DC11B65" | openssl dgst -sha1 -binary | openssl base64 -A)"
+  if fails ws-bad-accept; then accept="s3pPLMBiTxaQ9kYGzzhZRbK+xOo="; fi
+  lines=("HTTP/1.1 101 Switching Protocols")
+  fails ws-no-upgrade-header || lines+=("Upgrade: websocket")
+  lines+=("Connection: Upgrade")
+  fails ws-no-accept || lines+=("Sec-WebSocket-Accept: $accept")
+  headers "${lines[@]}"
+  payload='{"event":"pusher:connection_established","data":"{\"socket_id\":\"1.2\",\"activity_timeout\":30}"}'
+  if fails ws-pusher-error; then payload='{"event":"pusher:error","data":"{\"code\":4009,\"message\":\"Origin not allowed\"}"}'; fi
+  if fails ws-other-event; then payload='{"event":"pusher:pong","data":"{}"}'; fi
+  len=${#payload}
+  if fails ws-masked; then len=$((len + 128)); fi
+  if fails ws-no-frame; then
+    :
+  elif fails ws-not-a-frame; then
+    printf '%s' "$payload" >"$out"
+  else
+    { printf '\201'; printf "\\$(printf '%03o' "$len")"; printf '%s' "$payload"; } >"$out"
+  fi
+  if fails ws-reset; then echo "curl: (56) Recv failure: Connection reset by peer" >&2; exit 56; fi
+  echo "curl: (28) Operation timed out after 5001 milliseconds with ${#payload} bytes received" >&2
+  exit 28
 fi
 
 case "$host$path" in
@@ -225,6 +254,8 @@ assert_log "--http1.1 --max-time 5"
 assert_log "-H Upgrade: websocket"
 assert_log "-H Sec-WebSocket-Version: 13"
 assert_log "-H Origin: https://app.example.test"
+assert_log "-H Sec-WebSocket-Key: "
+assert_out "Reverb: pusher:connection_established"
 assert_calls 7
 assert_not_out "$KEY"
 assert_no_secret
@@ -293,6 +324,126 @@ run_smoke STUB_FAIL=ws-refused
 assert_rc 1
 assert_smoke_failed
 assert_out "WebSocket upgrade failed"
+
+# ---------------------------------------------------------------- WebSocket handshake (RFC 6455)
+
+sent_key() { grep -oE 'Sec-WebSocket-Key: [^ ]+' "$STUB_LOG" | head -1 | cut -d' ' -f2; }
+decoded_len() { printf '%s' "$1" | openssl base64 -d -A | wc -c | tr -d ' '; }
+
+case_ "handshake: key is a fresh base64 nonce of exactly 16 bytes"
+run_smoke
+assert_rc 0
+key1="$(sent_key)"
+check "key is canonical base64 of 16 bytes" bash -c '[[ "$1" =~ ^[A-Za-z0-9+/]{21}[AQgw]==$ ]]' _ "$key1"
+check "key decodes to 16 bytes" test "$(decoded_len "$key1")" = 16
+check "key is not the old 18-byte constant" test "$key1" != "bWFyY2F0dXJzaHViLXNtb2tl"
+run_smoke
+check "each run uses a new key" test "$(sent_key)" != "$key1"
+
+case_ "handshake: server rejecting the key (400, connection held open) fails"
+run_smoke STUB_FAIL=ws-reject-key
+assert_rc 1
+assert_smoke_failed
+assert_out "HTTP/1.1 400 Invalid Sec-WebSocket-Key"
+assert_out "WebSocket upgrade failed: expected HTTP/1.1 101 Switching Protocols (curl exit 28)"
+
+case_ "handshake: timeout with no response fails"
+run_smoke STUB_FAIL=ws-timeout
+assert_rc 1
+assert_smoke_failed
+assert_out "no HTTP response"
+assert_out "(curl exit 28)"
+
+case_ "handshake: wrong Sec-WebSocket-Accept fails"
+run_smoke STUB_FAIL=ws-bad-accept
+assert_rc 1
+assert_smoke_failed
+assert_out "Sec-WebSocket-Accept is missing or does not match the handshake key"
+
+case_ "handshake: missing Sec-WebSocket-Accept fails"
+run_smoke STUB_FAIL=ws-no-accept
+assert_rc 1
+assert_smoke_failed
+assert_out "Sec-WebSocket-Accept is missing or does not match the handshake key"
+
+case_ "handshake: 101 without 'Upgrade: websocket' fails"
+run_smoke STUB_FAIL=ws-no-upgrade-header
+assert_rc 1
+assert_smoke_failed
+assert_out "response has no 'Upgrade: websocket' header"
+
+case_ "handshake: connection error after the 101 fails"
+run_smoke STUB_FAIL=ws-reset
+assert_rc 1
+assert_smoke_failed
+assert_out "connection error after the handshake (curl exit 56)"
+
+case_ "frame: no frame within the timeout fails"
+run_smoke STUB_FAIL=ws-no-frame
+assert_rc 1
+assert_smoke_failed
+assert_out "no unmasked WebSocket text frame received within 5s"
+
+case_ "frame: unframed body fails"
+run_smoke STUB_FAIL=ws-not-a-frame
+assert_rc 1
+assert_smoke_failed
+assert_out "no unmasked WebSocket text frame received within 5s"
+
+case_ "frame: masked server frame fails"
+run_smoke STUB_FAIL=ws-masked
+assert_rc 1
+assert_smoke_failed
+assert_out "no unmasked WebSocket text frame received within 5s"
+
+case_ "frame: pusher:error (e.g. origin not allowed) fails with its code"
+run_smoke STUB_FAIL=ws-pusher-error
+assert_rc 1
+assert_smoke_failed
+assert_out "Reverb sent pusher:error 4009"
+
+case_ "frame: an event other than pusher:connection_established fails"
+run_smoke STUB_FAIL=ws-other-event
+assert_rc 1
+assert_smoke_failed
+assert_out "first frame is not pusher:connection_established"
+
+# ---------------------------------------------------------------- handshake key generation
+
+FAKE_SSL="$WORK/fake-openssl"
+NO_SSL="$WORK/no-openssl"
+mkdir -p "$FAKE_SSL" "$NO_SSL"
+cat >"$FAKE_SSL/openssl" <<'EOF'
+#!/usr/bin/env bash
+if [ -n "${FAKE_OPENSSL_OUT+x}" ]; then printf '%s\n' "$FAKE_OPENSSL_OUT"; exit 0; fi
+echo "openssl stub: failure" >&2
+exit 1
+EOF
+chmod +x "$FAKE_SSL/openssl"
+ln -s "$(command -v bash)" "$NO_SSL/bash"
+
+case_ "keygen: openssl missing fails before any check"
+run_smoke PATH="$STUB_BIN:$NO_SSL"
+assert_config_error
+assert_out "openssl is required to generate the WebSocket handshake key"
+
+case_ "keygen: openssl failure fails before any check"
+run_smoke PATH="$FAKE_SSL:$STUB_BIN:$PATH"
+assert_config_error
+assert_out "could not generate a valid WebSocket handshake key"
+
+case_ "keygen: the old 18-byte key is refused before any check"
+run_smoke PATH="$FAKE_SSL:$STUB_BIN:$PATH" FAKE_OPENSSL_OUT=bWFyY2F0dXJzaHViLXNtb2tl
+assert_config_error
+assert_out "could not generate a valid WebSocket handshake key"
+
+case_ "keygen: non-canonical 24-character key is refused before any check"
+run_smoke PATH="$FAKE_SSL:$STUB_BIN:$PATH" FAKE_OPENSSL_OUT=AAAAAAAAAAAAAAAAAAAAAB==
+assert_config_error
+
+case_ "keygen: empty output is refused before any check"
+run_smoke PATH="$FAKE_SSL:$STUB_BIN:$PATH" FAKE_OPENSSL_OUT=
+assert_config_error
 
 # ---------------------------------------------------------------- existing checks stay intact
 
@@ -401,6 +552,7 @@ done
 case_ "hygiene: smoke never handles the Reverb secret or traces commands"
 check "smoke.sh does not reference REVERB_APP_SECRET" bash -c '! grep -q "REVERB_APP_SECRET" "$1"' _ "$SMOKE"
 check "smoke.sh has no shell tracing" bash -c '! grep -qE "set -[a-z]*x" "$1"' _ "$SMOKE"
+check "smoke.sh does not hard-code a Sec-WebSocket-Key" bash -c '! grep -qE "Sec-WebSocket-Key: [A-Za-z0-9+/=]" "$1"' _ "$SMOKE"
 check "workflow never reads a Reverb secret" bash -c '! grep -q "secrets\.REVERB" "$1"' _ "$WORKFLOW"
 
 # ---------------------------------------------------------------- result
