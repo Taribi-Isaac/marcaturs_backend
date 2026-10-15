@@ -21,7 +21,7 @@ use Laravel\Sanctum\PersonalAccessToken;
 class AuthenticationService
 {
     /**
-     * @return array{user: User, token: string}
+     * @return array{user: User, token: ?string}
      */
     public function register(string $name, string $email, string $password, Role $role): array
     {
@@ -47,7 +47,7 @@ class AuthenticationService
     }
 
     /**
-     * @return array{user: User, token: string}
+     * @return array{user: User, token: ?string}
      */
     public function login(string $email, string $password): array
     {
@@ -108,21 +108,26 @@ class AuthenticationService
     }
 
     /**
-     * Establish the current web session (when present) and issue a single auth PAT.
+     * Establish a web session for first-party SPA requests, or issue a single auth PAT
+     * for non-browser clients.
      *
-     * MH-GATE-008 / MH-BE-047: revoke all existing PATs before creating the new token
-     * so login/register never accumulate authentication PATs.
+     * MH-GATE-008 / MH-BE-047: revoke all existing PATs on every login/register so
+     * authentication PATs never accumulate. MH-SEC-001: Sanctum only starts a session
+     * for requests from SANCTUM_STATEFUL_DOMAINS; those SPAs authenticate with the
+     * session cookie, so they receive no Bearer token that script could copy.
      *
-     * @return array{user: User, token: string}
+     * @return array{user: User, token: ?string}
      */
     private function establishSession(User $user): array
     {
-        if (request()->hasSession()) {
+        $browserSession = request()->hasSession();
+
+        if ($browserSession) {
             Auth::guard('web')->login($user);
             request()->session()->regenerate();
         }
 
-        $plainTextToken = DB::transaction(function () use ($user): string {
+        $plainTextToken = DB::transaction(function () use ($user, $browserSession): ?string {
             /** @var User $locked */
             $locked = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
@@ -132,7 +137,7 @@ class AuthenticationService
                 'last_login_at' => now(),
             ])->save();
 
-            return $locked->createToken('auth')->plainTextToken;
+            return $browserSession ? null : $locked->createToken('auth')->plainTextToken;
         });
 
         return [

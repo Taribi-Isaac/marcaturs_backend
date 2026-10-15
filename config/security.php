@@ -31,9 +31,10 @@ return [
     | Admin origin binding (Option A)
     |--------------------------------------------------------------------------
     |
-    | Cookie-authenticated /api/v1/admin/* requests must carry one of these
-    | exact Origin values (EnsureAdminOrigin). Defaults to ADMIN_FRONTEND_URL.
-    | Empty in production rejects every cookie-authenticated Admin request.
+    | Browser /api/v1/admin/* requests (cookie session, or Bearer with an Origin
+    | header) must carry one of these exact Origin values (EnsureAdminOrigin).
+    | Defaults to ADMIN_FRONTEND_URL. Empty in production rejects every browser
+    | Admin request.
     |
     */
 
