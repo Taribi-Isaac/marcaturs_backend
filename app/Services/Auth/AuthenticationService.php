@@ -8,12 +8,14 @@ use App\Models\User;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthenticationService
@@ -29,7 +31,15 @@ class AuthenticationService
         $user->password = $password;
         $user->role = $role;
         $user->status = AccountStatus::Active;
-        $user->save();
+
+        try {
+            $user->save();
+        } catch (UniqueConstraintViolationException) {
+            // A concurrent request registered the same email after validation passed.
+            throw ValidationException::withMessages([
+                'email' => [__('validation.unique', ['attribute' => 'email'])],
+            ]);
+        }
 
         $user->sendEmailVerificationNotification();
 
