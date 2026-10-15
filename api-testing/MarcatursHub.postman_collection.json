@@ -146,7 +146,7 @@
     },
     {
       "name": "Authentication",
-      "description": "Public registration is open (no invitation or pre-approval) and limited to BUSINESS and AMBASSADOR. There is no public Register Admin request. One email holds one account across all roles; a duplicate returns 400 with details.email only. MH-GATE-006: after register/login, BUSINESS/AMBASSADOR must verify email before product APIs (except /auth/me, logout, change-password, resend verification). Email verification ≠ participant Verification.",
+      "description": "Public registration is open (no invitation or pre-approval) and limited to BUSINESS and AMBASSADOR. There is no public Register Admin request. One email holds one account across all roles; a duplicate returns 400 with details.email only. MH-SEC-001: Postman sends no SPA Origin, so login/register return a Bearer token here; the browser SPAs get a session cookie and no token. Admin requests carrying a non-Admin Origin header are rejected even with a valid token. MH-GATE-006: after register/login, BUSINESS/AMBASSADOR must verify email before product APIs (except /auth/me, logout, change-password, resend verification). Email verification ≠ participant Verification.",
       "item": [
         {
           "name": "Register Business",

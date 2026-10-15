@@ -141,7 +141,7 @@ One email address holds one account across all roles. Emails are trimmed and low
 }
 ```
 
-Response `201`: `{ user, token, token_type: "Bearer" }`. Password hashes are never returned. Initial `status` is `active`. Registration issues a Sanctum token immediately and sends an email-verification notification. **MH-GATE-006:** email verification is a mandatory product-access gate for BUSINESS and AMBASSADOR accounts. Unverified participants may authenticate (`/auth/me`, logout, change-password, resend verification) but other authenticated product APIs return `403` with a verify-email message. Admin staff are exempt. `email_verified_at` remains on user payloads. Email verification is **not** participant Verification, Certification, or reputation.
+Response `201`: `{ user }` for the first-party SPAs (cookie session), or `{ user, token, token_type: "Bearer" }` for non-browser clients (see Login / registration tokens). Password hashes are never returned. Initial `status` is `active`. Registration signs the user in immediately and sends an email-verification notification. **MH-GATE-006:** email verification is a mandatory product-access gate for BUSINESS and AMBASSADOR accounts. Unverified participants may authenticate (`/auth/me`, logout, change-password, resend verification) but other authenticated product APIs return `403` with a verify-email message. Admin staff are exempt. `email_verified_at` remains on user payloads. Email verification is **not** participant Verification, Certification, or reputation.
 
 ### Login
 
@@ -225,7 +225,12 @@ Revokes all Sanctum personal access tokens for the user and invalidates the web 
 
 ### Login / registration tokens
 
-Successful login and registration continue to return `{ user, token, token_type: "Bearer" }`. The returned Bearer PAT is subject to the 7-day Sanctum expiration. First-party SPAs authenticate primarily via cookie session + CSRF; they must not rely on indefinite PAT reuse.
+**MH-SEC-001.** The response depends on how the request arrives:
+
+- **First-party SPAs** (requests whose `Origin`/`Referer` is in `SANCTUM_STATEFUL_DOMAINS`, i.e. the participant app and Admin Control) are signed in with the session cookie and receive `{ user }` only. No PAT is created, so there is no Bearer credential for page script to read or copy.
+- **Non-browser clients** (API tooling such as Postman or `curl`, future mobile apps; no SPA `Origin`/`Referer`) receive `{ user, token, token_type: "Bearer" }`. The PAT is subject to the 7-day Sanctum expiration.
+
+Both paths revoke every existing PAT for the user first, as before. Full model: [authentication-token-policy.md](authentication-token-policy.md) §7.
 
 ### Roles
 

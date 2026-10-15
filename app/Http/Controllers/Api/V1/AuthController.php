@@ -36,11 +36,7 @@ class AuthController extends Controller
             Role::from($request->string('role')->toString()),
         );
 
-        return ApiResponse::success([
-            'user' => (new UserResource($result['user']))->resolve($request),
-            'token' => $result['token'],
-            'token_type' => 'Bearer',
-        ], 201);
+        return ApiResponse::success($this->authenticatedPayload($result, $request), 201);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -50,11 +46,7 @@ class AuthController extends Controller
             $request->string('password')->toString(),
         );
 
-        return ApiResponse::success([
-            'user' => (new UserResource($result['user']))->resolve($request),
-            'token' => $result['token'],
-            'token_type' => 'Bearer',
-        ]);
+        return ApiResponse::success($this->authenticatedPayload($result, $request));
     }
 
     public function logout(Request $request): JsonResponse
@@ -151,5 +143,25 @@ class AuthController extends Controller
             'message' => 'A new verification link has been sent.',
             'already_verified' => false,
         ]);
+    }
+
+    /**
+     * Browser (stateful SPA) sessions receive only the user; non-browser clients also receive their Bearer token.
+     *
+     * @param  array{user: User, token: ?string}  $result
+     * @return array<string, mixed>
+     */
+    private function authenticatedPayload(array $result, Request $request): array
+    {
+        $payload = [
+            'user' => (new UserResource($result['user']))->resolve($request),
+        ];
+
+        if ($result['token'] !== null) {
+            $payload['token'] = $result['token'];
+            $payload['token_type'] = 'Bearer';
+        }
+
+        return $payload;
     }
 }

@@ -90,13 +90,27 @@ class AdminOriginBindingTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_token_authenticated_admin_request_is_not_origin_bound(): void
+    public function test_token_authenticated_admin_request_from_a_browser_origin_is_origin_bound(): void
     {
         Sanctum::actingAs(User::factory()->admin()->create());
 
-        $this->withHeader('Origin', self::APP_ORIGIN)
+        foreach ([self::APP_ORIGIN, 'null', 'https://evil.example'] as $origin) {
+            $this->withHeader('Origin', $origin)
+                ->getJson('/api/v1/admin/overview')
+                ->assertStatus(403)
+                ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+        }
+
+        $this->withHeader('Origin', self::ADMIN_ORIGIN)
             ->getJson('/api/v1/admin/overview')
             ->assertOk();
+    }
+
+    public function test_token_authenticated_admin_request_without_origin_is_accepted(): void
+    {
+        Sanctum::actingAs(User::factory()->admin()->create());
+
+        $this->getJson('/api/v1/admin/overview')->assertOk();
     }
 
     public function test_production_without_configured_admin_origin_fails_closed(): void
