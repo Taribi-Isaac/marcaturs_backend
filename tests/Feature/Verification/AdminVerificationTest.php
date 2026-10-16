@@ -38,7 +38,7 @@ class AdminVerificationTest extends TestCase
 
     public function test_admin_can_create_and_deactivate_requirements(): void
     {
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/verification/requirements', [
             'name' => 'Registered office address',
@@ -78,7 +78,7 @@ class AdminVerificationTest extends TestCase
         $requirement = VerificationRequirement::factory()->create();
         $submission = VerificationSubmission::factory()->for($user)->for($requirement, 'requirement')->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->getJson('/api/v1/admin/verification/submissions?status=pending')
             ->assertOk()
@@ -117,7 +117,7 @@ class AdminVerificationTest extends TestCase
         $user = User::factory()->business()->create();
         $requirement = VerificationRequirement::factory()->create();
         $submission = VerificationSubmission::factory()->for($user)->for($requirement, 'requirement')->underReview()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/verification/submissions/'.$submission->id.'/reject', [])
             ->assertStatus(400)
@@ -162,7 +162,7 @@ class AdminVerificationTest extends TestCase
         $firstSubmission = VerificationSubmission::factory()->for($user)->for($first, 'requirement')->underReview()->create();
         VerificationSubmission::factory()->for($user)->for($second, 'requirement')->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/verification/submissions/'.$firstSubmission->id.'/approve')
             ->assertOk();
 
@@ -192,7 +192,7 @@ class AdminVerificationTest extends TestCase
         $this->get('/api/v1/admin/verification/submissions/'.$submission->id.'/evidence/'.$evidence->id.'/download')
             ->assertStatus(403);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $download = $this->get('/api/v1/admin/verification/submissions/'.$submission->id.'/evidence/'.$evidence->id.'/download');
         $download->assertOk();
         $this->assertStringContainsString('image/png', (string) $download->headers->get('content-type'));
@@ -213,7 +213,7 @@ class AdminVerificationTest extends TestCase
     {
         $staff = User::factory()->adminStaff(AdminStaffRole::Verification)->create();
         VerificationRequirement::factory()->create(['name' => 'Visible requirement']);
-        Sanctum::actingAs($staff);
+        $this->actingAsBrowserSession($staff);
 
         $this->getJson('/api/v1/admin/verification/requirements')
             ->assertOk()
@@ -233,7 +233,7 @@ class AdminVerificationTest extends TestCase
     public function test_operations_staff_can_configure_requirements(): void
     {
         $ops = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($ops);
+        $this->actingAsBrowserSession($ops);
 
         $this->postJson('/api/v1/admin/verification/requirements', [
             'name' => 'Ops configured check',

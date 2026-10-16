@@ -56,7 +56,7 @@ class CertificationCurriculumFoundationTest extends TestCase
         $this->postJson("{$base}/modules", ['title' => 'Nope'])
             ->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
         $this->getJson("{$base}/modules")
             ->assertStatus(403);
     }
@@ -65,7 +65,7 @@ class CertificationCurriculumFoundationTest extends TestCase
     {
         Storage::fake((string) config('certification.resource_disk'));
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         [$programme, $version] = $this->draftStack();
         $base = $this->base($programme, $version);
 
@@ -159,7 +159,7 @@ class CertificationCurriculumFoundationTest extends TestCase
     public function test_published_version_curriculum_is_immutable_and_historical_versions_remain_isolated(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::SuperAdmin)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $programme = CertificationProgramme::factory()->create([
             'status' => CertificationProgrammeStatus::Published,
@@ -218,7 +218,7 @@ class CertificationCurriculumFoundationTest extends TestCase
     public function test_nested_idor_mismatches_return_not_found(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         [$programmeA, $versionA] = $this->draftStack();
         [$programmeB, $versionB] = $this->draftStack();
@@ -243,7 +243,7 @@ class CertificationCurriculumFoundationTest extends TestCase
     public function test_unpublished_version_curriculum_remains_immutable(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $programme = CertificationProgramme::factory()->create([
             'status' => CertificationProgrammeStatus::Unpublished,
@@ -272,7 +272,7 @@ class CertificationCurriculumFoundationTest extends TestCase
     public function test_draft_module_delete_renumbers_remaining_modules(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         [$programme, $version] = $this->draftStack();
         $base = $this->base($programme, $version);
 

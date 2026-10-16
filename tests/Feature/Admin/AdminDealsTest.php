@@ -24,7 +24,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AdminDealsTest extends TestCase
@@ -39,11 +38,11 @@ class AdminDealsTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('error.code', ApiErrorCode::UNAUTHENTICATED);
 
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
         $this->getJson('/api/v1/admin/deals')->assertStatus(403);
         $this->getJson('/api/v1/admin/deals/'.$deal->id)->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->ambassador()->create());
+        $this->actingAsBrowserSession(User::factory()->ambassador()->create());
         $this->getJson('/api/v1/admin/deals')->assertStatus(403);
         $this->getJson('/api/v1/admin/deals/'.$deal->id.'/payment-evidence/1/download')->assertStatus(403);
     }
@@ -52,7 +51,7 @@ class AdminDealsTest extends TestCase
     {
         $first = $this->makeDeal(['product_name' => 'First product']);
         $second = $this->makeDeal(['product_name' => 'Second product']);
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $response = $this->getJson('/api/v1/admin/deals?per_page=15')
             ->assertOk()
@@ -122,7 +121,7 @@ class AdminDealsTest extends TestCase
             'product_name' => 'Other',
         ]);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/deals?status=payment_pending')
             ->assertOk()
@@ -159,7 +158,7 @@ class AdminDealsTest extends TestCase
         $received = $this->makeSealedDealWithCommission(CommissionStatus::Received, dueAt: now()->subDays(5));
         $this->makeOpenDispute($due);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/deals?open_dispute=1')
             ->assertOk()
@@ -232,7 +231,7 @@ class AdminDealsTest extends TestCase
             'metadata' => ['safe' => true],
         ])->save();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $response = $this->getJson('/api/v1/admin/deals/'.$deal->id)
             ->assertOk()
@@ -278,7 +277,7 @@ class AdminDealsTest extends TestCase
         ]);
         $orphan = $this->makeEvidence($other, $other->ambassador);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->get('/api/v1/admin/deals/'.$deal->id.'/payment-evidence/'.$evidence->id.'/download')
             ->assertOk();
@@ -297,7 +296,7 @@ class AdminDealsTest extends TestCase
         $this->getJson('/api/v1/admin/deals/'.$deal->id.'/payment-evidence/'.$noFile->id.'/download')
             ->assertStatus(404);
 
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
         $this->getJson('/api/v1/admin/deals/'.$deal->id.'/payment-evidence/'.$evidence->id.'/download')
             ->assertStatus(403);
     }

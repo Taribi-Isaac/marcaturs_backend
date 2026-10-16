@@ -42,7 +42,7 @@ class CertificationPassMarkAuthorityTest extends TestCase
         ]);
         $base = "/api/v1/admin/certification/programmes/{$programme->id}/versions/1";
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson("{$base}/assessment", [
             'title' => 'NON-PRODUCTION Assessment',
             'pass_mark_percent' => 99,

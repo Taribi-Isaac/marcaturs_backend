@@ -234,7 +234,7 @@ class CertificationCertificateArtifactTest extends TestCase
         $this->get("/api/v1/certification/certificates/{$certificate->id}/download")->assertStatus(401);
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->get("/api/v1/admin/certification/certificates/{$certificate->id}/download")
             ->assertOk();
     }
@@ -258,7 +258,7 @@ class CertificationCertificateArtifactTest extends TestCase
 
         Queue::fake();
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson("/api/v1/admin/certification/certificates/{$certificate->id}/artifact/retry")
             ->assertOk()
             ->assertJsonPath('data.artifact_status', CertificationCertificateArtifactStatus::PendingGeneration->value)

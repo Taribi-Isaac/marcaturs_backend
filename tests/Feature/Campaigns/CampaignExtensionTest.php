@@ -48,7 +48,7 @@ class CampaignExtensionTest extends TestCase
     public function test_admin_can_configure_extension_packages(): void
     {
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/campaign-extension-packages', [
             'name' => '30 additional days',
@@ -169,7 +169,7 @@ class CampaignExtensionTest extends TestCase
 
         [$owner, $toSuspend] = $this->activeCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$toSuspend->id.'/suspend', [
             'reason' => 'Risk review.',
         ])->assertOk();
@@ -179,7 +179,7 @@ class CampaignExtensionTest extends TestCase
         ])->assertStatus(409);
 
         [$owner, $toClose] = $this->activeCampaign();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$toClose->id.'/close', [
             'reason' => 'Closed.',
         ])->assertOk();
@@ -497,7 +497,7 @@ class CampaignExtensionTest extends TestCase
     {
         [$owner, $campaign] = $this->submittedCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/approve')->assertOk();
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/activate')->assertOk();
 

@@ -29,7 +29,7 @@ class BusinessAmbassadorChatTest extends TestCase
 
     public function test_admin_cannot_use_participant_conversation_routes(): void
     {
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/conversations')
             ->assertStatus(403)
@@ -304,7 +304,7 @@ class BusinessAmbassadorChatTest extends TestCase
         ])->assertStatus(409)
             ->assertJsonPath('error.code', ApiErrorCode::CONFLICT);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/conversations')
             ->assertOk()
             ->assertJsonPath('data.0.id', $conversationId)

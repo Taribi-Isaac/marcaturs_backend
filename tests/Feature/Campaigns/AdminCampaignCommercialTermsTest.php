@@ -52,7 +52,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
             'terms' => 'Official campaign participation terms.',
         ]);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $response = $this->getJson('/api/v1/admin/campaigns/'.$campaign->id)
             ->assertOk()
             ->assertJsonPath('data.id', $campaign->id)
@@ -144,7 +144,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
             'terms' => 'Draft-only terms that must not appear.',
         ]);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id)
             ->assertOk()
             ->assertJsonPath('data.current_version.id', $published->id)
@@ -175,7 +175,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
         ]);
         $campaign->forceFill(['current_campaign_version_id' => $draft->id])->save();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id)
             ->assertOk()
             ->assertJsonPath('data.current_version.id', $draft->id)
@@ -198,7 +198,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
             'current_campaign_version_id' => null,
         ]);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id)
             ->assertOk()
             ->assertJsonPath('data.current_version', null);
@@ -207,7 +207,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
     public function test_admin_detail_remains_valid_across_lifecycle_states_without_activating(): void
     {
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         foreach ([
             CampaignStatus::Draft,
@@ -245,7 +245,7 @@ class AdminCampaignCommercialTermsTest extends TestCase
             'payment_account_identifier' => 'LISTSECRETACC',
         ], CampaignStatus::Submitted);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns?status=submitted')
             ->assertOk()
             ->assertJsonPath('data.0.id', $campaign->id)

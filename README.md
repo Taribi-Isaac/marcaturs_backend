@@ -125,7 +125,7 @@ Import an environment from `api-testing/environments/` and set `baseUrl`.
 
 Implemented folders: **Health**, **Authentication**, **Businesses**, **Ambassadors**, **Verification — Participant**, **Verification — Administration**, **Categories**, **Categories — Administration**, **Campaign Marketplace**, **Campaigns — Business**, **Campaign Lifecycle — Administration**, **Campaign Extensions — Business**, **Campaign Extension Packages — Administration**, **Paystack Webhook**, **Campaign Marketing Resources**, **Conversations**, **Deals**. Other folders are placeholders.
 
-Authentication uses collection variables `token`, `businessEmail`, `ambassadorEmail`, `adminEmail`, and `password` (demo values only; not production secrets). Login and register scripts store `token` for Current User and Logout. Do not put real identity documents in Postman.
+Authentication uses collection variables `token`, `businessEmail`, `ambassadorEmail`, `adminEmail`, and `password` (demo values only; not production secrets). Login/register scripts may store `token` for Business/Ambassador Bearer clients. Admin Control uses cookie sessions; Admin accounts do not receive a PAT, and Bearer tokens cannot authorize `/api/v1/admin/*` (MH-SEC-012). Do not put real identity documents in Postman.
 
 Newman (optional):
 
@@ -137,7 +137,7 @@ npx newman run api-testing/MarcatursHub.postman_collection.json \
 ## Architecture notes
 
 - Modular monolith, REST, URI versioning: `/api/v1/...` (TAD §48).
-- Authentication: Laravel Sanctum (session/cookie for the first-party web app, plus a bearer token on login/register for API clients). See [docs/API.md](docs/API.md).
+- Authentication: Laravel Sanctum (session/cookie for the first-party SPAs; Bearer PAT on non-browser login/register for Business/Ambassador only). Admin APIs require a browser session. See [docs/API.md](docs/API.md).
 - Authorization: `auth:sanctum`, `account.access`, and `role:*` middleware plus Gates `admin`, `business`, `ambassador`.
 - MySQL is the system of record. Redis is configured for cache, queues, and shared sessions. Laravel Reverb is the local WebSocket process for chat delivery; it is not the message store.
 - Private files default to the `local` / `sensitive` / `campaign_media` disks. Verification evidence and Deal payment evidence use `sensitive`; campaign marketing files use `campaign_media` (`storage/app/private/campaign-media`). Neither is given a public URL. Staging/production may set `SENSITIVE_DISK_DRIVER=s3` and `CAMPAIGN_MEDIA_DISK_DRIVER=s3` (private buckets) without changing the API.

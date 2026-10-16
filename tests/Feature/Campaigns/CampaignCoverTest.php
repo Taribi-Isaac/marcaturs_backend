@@ -286,7 +286,7 @@ class CampaignCoverTest extends TestCase
             'file' => UploadedFile::fake()->image('admin.jpg'),
         ], ['Accept' => 'application/json'])->assertCreated();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id.'/cover')
             ->assertOk()
             ->assertJsonPath('data.available', true)

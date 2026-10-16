@@ -21,17 +21,22 @@ class ChangePasswordTest extends TestCase
             'password' => 'password',
         ]);
 
-        $token = $this->postJson('/api/v1/auth/login', [
+        // Admin login no longer issues a PAT (MH-SEC-012); session auth still works.
+        $this->postJson('/api/v1/auth/login', [
             'email' => 'admin@example.com',
             'password' => 'password',
-        ])->assertOk()->json('data.token');
+        ])
+            ->assertOk()
+            ->assertJsonMissingPath('data.token')
+            ->assertJsonPath('data.user.id', $user->id);
 
-        $this->withToken($token)
-            ->postJson('/api/v1/auth/change-password', [
-                'current_password' => 'password',
-                'password' => 'new-password-123',
-                'password_confirmation' => 'new-password-123',
-            ])
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/v1/auth/change-password', [
+            'current_password' => 'password',
+            'password' => 'new-password-123',
+            'password_confirmation' => 'new-password-123',
+        ])
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.message', 'Your password has been changed.')
@@ -44,8 +49,8 @@ class ChangePasswordTest extends TestCase
         $this->assertFalse(Hash::check('password', $user->password));
         $this->assertFalse(str_contains($user->password, 'new-password-123'));
 
-        $this->withToken($token)
-            ->getJson('/api/v1/auth/me')
+        Sanctum::actingAs($user);
+        $this->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('data.id', $user->id);
     }
@@ -136,13 +141,13 @@ class ChangePasswordTest extends TestCase
 
     public function test_other_sanctum_tokens_are_revoked_while_current_token_remains(): void
     {
-        $user = User::factory()->admin()->create([
-            'email' => 'admin-tokens@example.com',
+        $user = User::factory()->business()->create([
+            'email' => 'business-tokens@example.com',
             'password' => 'password',
         ]);
 
         $currentToken = $this->postJson('/api/v1/auth/login', [
-            'email' => 'admin-tokens@example.com',
+            'email' => 'business-tokens@example.com',
             'password' => 'password',
         ])->assertOk()->json('data.token');
 
