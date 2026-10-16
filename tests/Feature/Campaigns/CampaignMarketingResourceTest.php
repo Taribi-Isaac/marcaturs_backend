@@ -162,7 +162,7 @@ class CampaignMarketingResourceTest extends TestCase
     {
         $campaign = $this->discoverableCampaign(['status' => CampaignStatus::Suspended]);
         $resource = $this->attachResource($campaign);
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id.'/resources')
             ->assertOk()

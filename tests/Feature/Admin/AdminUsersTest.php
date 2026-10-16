@@ -24,7 +24,6 @@ use App\Notifications\AccountStatusChangedNotification;
 use App\Support\Api\ApiErrorCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AdminUsersTest extends TestCase
@@ -37,10 +36,10 @@ class AdminUsersTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('error.code', ApiErrorCode::UNAUTHENTICATED);
 
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
         $this->getJson('/api/v1/admin/users')->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->ambassador()->create());
+        $this->actingAsBrowserSession(User::factory()->ambassador()->create());
         $this->getJson('/api/v1/admin/users')->assertStatus(403);
     }
 
@@ -67,7 +66,7 @@ class AdminUsersTest extends TestCase
         User::factory()->admin()->create(['email' => 'hidden.admin@example.com']);
         User::factory()->business()->suspended()->create(['email' => 'suspended.biz@example.com']);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $all = $this->getJson('/api/v1/admin/users')
             ->assertOk()
@@ -111,7 +110,7 @@ class AdminUsersTest extends TestCase
     public function test_list_pagination_and_per_page_maximum(): void
     {
         User::factory()->business()->count(20)->create();
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/users?per_page=10')
             ->assertOk()
@@ -173,7 +172,7 @@ class AdminUsersTest extends TestCase
             'status' => DisputeStatus::Submitted,
         ])->save();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/users/'.$business->id)
             ->assertOk()
@@ -197,7 +196,7 @@ class AdminUsersTest extends TestCase
     public function test_admin_target_and_missing_user_are_not_exposed(): void
     {
         $adminTarget = User::factory()->admin()->create();
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->getJson('/api/v1/admin/users/'.$adminTarget->id)
             ->assertStatus(404);
@@ -212,7 +211,7 @@ class AdminUsersTest extends TestCase
 
         $actor = User::factory()->admin()->create();
         $target = User::factory()->business()->create(['status' => AccountStatus::Active]);
-        Sanctum::actingAs($actor);
+        $this->actingAsBrowserSession($actor);
 
         $this->postJson('/api/v1/admin/users/'.$target->id.'/restrict', [])
             ->assertStatus(400)
@@ -268,7 +267,7 @@ class AdminUsersTest extends TestCase
     {
         $actor = User::factory()->admin()->create();
         $otherAdmin = User::factory()->admin()->create();
-        Sanctum::actingAs($actor);
+        $this->actingAsBrowserSession($actor);
 
         $this->postJson('/api/v1/admin/users/'.$actor->id.'/suspend', [
             'reason' => 'Self sanction attempt.',
@@ -283,7 +282,7 @@ class AdminUsersTest extends TestCase
     {
         Notification::fake();
         $actor = User::factory()->admin()->create();
-        Sanctum::actingAs($actor);
+        $this->actingAsBrowserSession($actor);
 
         $restricted = User::factory()->business()->create(['status' => AccountStatus::Active]);
         $restrictedToken = $restricted->createToken('keep')->plainTextToken;
@@ -294,7 +293,7 @@ class AdminUsersTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->withToken($restrictedToken)->getJson('/api/v1/auth/me')->assertOk();
 
-        Sanctum::actingAs($actor);
+        $this->actingAsBrowserSession($actor);
         $suspended = User::factory()->business()->create(['status' => AccountStatus::Active]);
         $suspended->createToken('drop-me');
         $this->assertSame(1, $suspended->fresh()->tokens()->count());
@@ -354,7 +353,7 @@ class AdminUsersTest extends TestCase
 
         $this->getJson('/api/v1/marketplace/campaigns/'.$campaign->id)->assertOk();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->postJson('/api/v1/admin/users/'.$owner->id.'/suspend', [
             'reason' => 'Business under investigation.',
         ])->assertOk();
@@ -379,7 +378,7 @@ class AdminUsersTest extends TestCase
         $v2 = CampaignVersion::factory()->for($visible)->published()->create();
         $visible->forceFill(['current_campaign_version_id' => $v2->id])->save();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->postJson('/api/v1/admin/users/'.$ambassador->id.'/ban', [
             'reason' => 'Ambassador ban must not hide unrelated campaigns.',
         ])->assertOk();
@@ -393,7 +392,7 @@ class AdminUsersTest extends TestCase
     {
         Notification::fake();
         $target = User::factory()->business()->create();
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/users/'.$target->id.'/ban', [
             'reason' => 'Policy ban.',

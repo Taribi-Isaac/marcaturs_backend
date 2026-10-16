@@ -302,7 +302,7 @@ class CertificationAssessmentAttemptTest extends TestCase
         ])->assertOk()->assertJsonPath('data.programme_version_id', $stack['version']->id);
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $v2 = $this->postJson("/api/v1/admin/certification/programmes/{$stack['programme']->id}/versions", [
             'fee_amount_minor' => 2500000,
             'pass_mark_percent' => 90,
@@ -339,7 +339,7 @@ class CertificationAssessmentAttemptTest extends TestCase
         ])->assertOk();
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson("/api/v1/admin/certification/enrollments/{$stack['enrollment']->id}/assessment/attempts")
             ->assertOk()
             ->assertJsonPath('data.0.id', $attemptId);

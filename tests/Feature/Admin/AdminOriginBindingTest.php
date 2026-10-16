@@ -90,27 +90,36 @@ class AdminOriginBindingTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_token_authenticated_admin_request_from_a_browser_origin_is_origin_bound(): void
+    public function test_token_authenticated_admin_request_is_rejected_regardless_of_origin(): void
     {
         Sanctum::actingAs(User::factory()->admin()->create());
 
-        foreach ([self::APP_ORIGIN, 'null', 'https://evil.example'] as $origin) {
+        foreach ([self::APP_ORIGIN, self::ADMIN_ORIGIN, 'null', 'https://evil.example'] as $origin) {
             $this->withHeader('Origin', $origin)
                 ->getJson('/api/v1/admin/overview')
                 ->assertStatus(403)
-                ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+                ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN)
+                ->assertJsonMissingPath('data');
         }
 
         $this->withHeader('Origin', self::ADMIN_ORIGIN)
-            ->getJson('/api/v1/admin/overview')
-            ->assertOk();
+            ->getJson('/api/v1/admin/users')
+            ->assertStatus(403)
+            ->assertJsonMissingPath('data');
     }
 
-    public function test_token_authenticated_admin_request_without_origin_is_accepted(): void
+    public function test_token_authenticated_admin_request_without_origin_is_rejected(): void
     {
         Sanctum::actingAs(User::factory()->admin()->create());
 
-        $this->getJson('/api/v1/admin/overview')->assertOk();
+        $this->getJson('/api/v1/admin/overview')
+            ->assertStatus(403)
+            ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN)
+            ->assertJsonMissingPath('data');
+
+        $this->getJson('/api/v1/admin/users')
+            ->assertStatus(403)
+            ->assertJsonMissingPath('data');
     }
 
     public function test_production_without_configured_admin_origin_fails_closed(): void

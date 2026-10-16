@@ -11,14 +11,15 @@ use Laravel\Sanctum\TransientToken;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Option A — origin-bound Admin routes (MH-SEC-001).
+ * Option A — Admin routes require a first-party browser session (MH-SEC-001 / MH-SEC-012).
  *
- * The session cookie is shared by app.* and admin.* (SESSION_DOMAIN), so an Admin
- * request made by a browser is only accepted when the browser says it came from the
- * Admin application. This applies to cookie and Bearer authentication alike: script
- * running on another origin must not be able to use a copied token to reach Admin
- * routes. Browsers always send Origin on cross-origin API calls, so a Bearer request
- * without one is a non-browser client (API tooling) and is not origin-bound.
+ * The session cookie is shared by app.* and admin.* (SESSION_DOMAIN), so a
+ * cookie-authenticated Admin request is only accepted when the browser says it
+ * came from the Admin application (Origin binding).
+ *
+ * MH-SEC-012: personal access tokens (Bearer PATs) must not authorize
+ * Admin API routes, regardless of Origin. Admin Control and ops use the
+ * browser session only; omitting Origin must not bypass that boundary.
  */
 class EnsureAdminOrigin
 {
@@ -33,8 +34,12 @@ class EnsureAdminOrigin
             return $next($request);
         }
 
-        if (! $user->currentAccessToken() instanceof TransientToken && ! $request->headers->has('Origin')) {
-            return $next($request);
+        if (! $user->currentAccessToken() instanceof TransientToken) {
+            return ApiResponse::error(
+                ApiErrorCode::FORBIDDEN,
+                'You are not authorized to perform this action.',
+                403,
+            );
         }
 
         $allowed = self::allowedOrigins();

@@ -218,19 +218,20 @@ Revokes all Sanctum personal access tokens for the user and invalidates the web 
 **Token lifecycle (MH-GATE-008 / MH-BE-047):** See [authentication-token-policy.md](authentication-token-policy.md).
 
 - PAT lifetime: **7 days** (`SANCTUM_TOKEN_EXPIRATION_MINUTES`, default `10080`).
-- Login/register: revoke all prior PATs, then issue one `auth` PAT (no accumulation).
+- Login/register: revoke all prior PATs, then issue one `auth` PAT for **Business/Ambassador** non-browser clients only (no accumulation). Admin accounts do not receive a PAT (MH-SEC-012).
 - Password reset: revoke all PATs and delete the user’s rows in the `sessions` table.
 - Change password: keep current PAT/session; revoke other PATs.
 - No refresh tokens / JWT.
 
 ### Login / registration tokens
 
-**MH-SEC-001.** The response depends on how the request arrives:
+**MH-SEC-001 / MH-SEC-012.** The response depends on how the request arrives and the account role:
 
 - **First-party SPAs** (requests whose `Origin`/`Referer` is in `SANCTUM_STATEFUL_DOMAINS`, i.e. the participant app and Admin Control) are signed in with the session cookie and receive `{ user }` only. No PAT is created, so there is no Bearer credential for page script to read or copy.
-- **Non-browser clients** (API tooling such as Postman or `curl`, future mobile apps; no SPA `Origin`/`Referer`) receive `{ user, token, token_type: "Bearer" }`. The PAT is subject to the 7-day Sanctum expiration.
+- **Non-browser Business / Ambassador clients** (API tooling such as Postman or `curl`, future mobile apps; no SPA `Origin`/`Referer`) receive `{ user, token, token_type: "Bearer" }`. The PAT is subject to the 7-day Sanctum expiration and may call participant APIs that accept Bearer auth.
+- **Non-browser Admin login** returns `{ user }` only (no PAT). Protected `/api/v1/admin/*` routes require a browser session credential (`TransientToken`) plus Admin-origin binding; a Bearer/PAT — including any token that still exists in the database — is rejected with `403` `forbidden` and no Admin payload, whether or not an `Origin` header is present.
 
-Both paths revoke every existing PAT for the user first, as before. Full model: [authentication-token-policy.md](authentication-token-policy.md) §7.
+Both paths revoke every existing PAT for the user first, as before. Browser Admin Control authentication is unchanged (cookie + CSRF + `admin.origin`). See [authentication-token-policy.md](authentication-token-policy.md) §7 (MH-SEC-001 / MH-SEC-012).
 
 ### Roles
 

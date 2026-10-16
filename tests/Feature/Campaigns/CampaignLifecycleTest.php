@@ -67,7 +67,7 @@ class CampaignLifecycleTest extends TestCase
 
         [$owner, $campaign] = $this->submittedCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/approve')
             ->assertOk()
@@ -93,7 +93,7 @@ class CampaignLifecycleTest extends TestCase
         $this->publishVersion($owner, $campaign);
         $admin = User::factory()->admin()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/approve')
             ->assertStatus(409)
             ->assertJsonPath('error.code', ApiErrorCode::CONFLICT);
@@ -110,7 +110,7 @@ class CampaignLifecycleTest extends TestCase
     {
         [$owner, $campaign] = $this->submittedCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/reject', [])
             ->assertStatus(400);
@@ -125,7 +125,7 @@ class CampaignLifecycleTest extends TestCase
         Sanctum::actingAs($owner);
         $this->postJson('/api/v1/campaigns/'.$campaign->id.'/submit')->assertOk();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/request-modification', [
             'reason' => 'Please revise the service area.',
         ])
@@ -153,7 +153,7 @@ class CampaignLifecycleTest extends TestCase
     {
         [$owner, $campaign] = $this->activeCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/suspend', [
             'reason' => 'Policy review.',
@@ -222,7 +222,7 @@ class CampaignLifecycleTest extends TestCase
         Sanctum::actingAs(User::factory()->business()->banned()->create());
         $this->postJson('/api/v1/campaigns/'.$campaign->id.'/submit')->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->getJson('/api/v1/admin/campaigns?status=submitted')
             ->assertOk()
             ->assertJsonPath('data.0.id', $campaign->id)
@@ -248,7 +248,7 @@ class CampaignLifecycleTest extends TestCase
         ]);
         $campaign->forceFill(['status' => CampaignStatus::Approved])->save();
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/activate')
             ->assertStatus(422)
             ->assertJsonPath('error.code', ApiErrorCode::BUSINESS_VALIDATION);
@@ -287,7 +287,7 @@ class CampaignLifecycleTest extends TestCase
     {
         [$owner, $campaign] = $this->submittedCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/approve')->assertOk();
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/activate')->assertOk();
 

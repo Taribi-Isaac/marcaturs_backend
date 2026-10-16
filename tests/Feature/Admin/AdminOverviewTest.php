@@ -24,7 +24,6 @@ use App\Models\VerificationSubmission;
 use App\Support\Api\ApiErrorCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AdminOverviewTest extends TestCase
@@ -43,10 +42,10 @@ class AdminOverviewTest extends TestCase
             ->assertStatus(401)
             ->assertJsonPath('error.code', ApiErrorCode::UNAUTHENTICATED);
 
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
         $this->getJson('/api/v1/admin/overview')->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->ambassador()->create());
+        $this->actingAsBrowserSession(User::factory()->ambassador()->create());
         $this->getJson('/api/v1/admin/overview')->assertStatus(403);
     }
 
@@ -157,7 +156,7 @@ class AdminOverviewTest extends TestCase
             now()->subMonths(2),
         );
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $response = $this->getJson('/api/v1/admin/overview')->assertOk();
 
         $data = $response->json('data');
@@ -254,7 +253,7 @@ class AdminOverviewTest extends TestCase
         $paidPastDue = $this->makeDeal($business, $ambassador, DealStatus::Sealed);
         $this->attachCommission($paidPastDue, CommissionStatus::Paid, now()->subDays(5));
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/overview')
             ->assertOk()
             ->assertJsonPath('data.commissions.due', 2)
@@ -271,7 +270,7 @@ class AdminOverviewTest extends TestCase
         $completed = $this->makeDeal($business, $ambassador, DealStatus::Completed);
         $this->makeDispute($completed, DisputeStatus::EvidenceRequested);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/overview')
             ->assertOk()
             ->assertJsonPath('data.deals.completed', 1)

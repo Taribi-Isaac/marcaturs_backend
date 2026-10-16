@@ -263,7 +263,7 @@ class CertificationLearningProgressTest extends TestCase
             ->assertOk();
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $v2 = $this->postJson("/api/v1/admin/certification/programmes/{$stack['programme']->id}/versions", [
             'fee_amount_minor' => 2500000,
@@ -319,7 +319,7 @@ class CertificationLearningProgressTest extends TestCase
     {
         $stack = $this->enrolledCurriculum();
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson("/api/v1/admin/certification/programmes/{$stack['programme']->id}/versions", [
             'fee_amount_minor' => 2500000,

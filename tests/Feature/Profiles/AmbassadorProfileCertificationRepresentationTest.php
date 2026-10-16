@@ -172,7 +172,7 @@ class AmbassadorProfileCertificationRepresentationTest extends TestCase
         ]);
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->getJson('/api/v1/admin/users/'.$ambassador->id)
             ->assertOk()

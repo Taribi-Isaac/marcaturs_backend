@@ -92,7 +92,7 @@ class DisputeFoundationTest extends TestCase
             'description' => 'This should not be allowed for outsiders.',
         ])->assertStatus(404);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/deals/'.$deal->id.'/disputes', [
             'category_id' => $categoryId,
             'description' => 'Admin cannot create disputes in phase one.',
@@ -157,7 +157,7 @@ class DisputeFoundationTest extends TestCase
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/start-review')->assertStatus(403);
         $this->postJson('/api/v1/disputes/'.$disputeId.'/start-review')->assertStatus(404);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/start-review', [
             'note' => 'Classified as non-payment.',
         ])->assertOk()->assertJsonPath('data.status', DisputeStatus::UnderReview->value);
@@ -175,7 +175,7 @@ class DisputeFoundationTest extends TestCase
             'note' => 'Transfer screenshot pack',
         ], ['Accept' => 'application/json'])->assertCreated();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/resume-review')->assertOk()
             ->assertJsonPath('data.status', DisputeStatus::UnderReview->value);
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/mark-decision-pending')->assertOk()
@@ -272,7 +272,7 @@ class DisputeFoundationTest extends TestCase
         $this->get('/api/v1/disputes/'.$disputeId.'/attachments/'.$attachmentId.'/download')
             ->assertOk();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/start-review')->assertOk();
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/mark-decision-pending')->assertOk();
         $this->postJson('/api/v1/admin/disputes/'.$disputeId.'/resolve', [
@@ -301,7 +301,7 @@ class DisputeFoundationTest extends TestCase
             'description' => 'Need admin review of the related commercial record.',
         ])->assertCreated()->json('data.id');
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/disputes/'.$disputeId)
             ->assertOk()
             ->assertJsonPath('data.deal.id', $deal->id)

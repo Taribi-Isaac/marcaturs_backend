@@ -109,12 +109,14 @@ class AuthenticationService
 
     /**
      * Establish a web session for first-party SPA requests, or issue a single auth PAT
-     * for non-browser clients.
+     * for non-browser clients (Business / Ambassador only).
      *
      * MH-GATE-008 / MH-BE-047: revoke all existing PATs on every login/register so
      * authentication PATs never accumulate. MH-SEC-001: Sanctum only starts a session
      * for requests from SANCTUM_STATEFUL_DOMAINS; those SPAs authenticate with the
      * session cookie, so they receive no Bearer token that script could copy.
+     * MH-SEC-012: Admin accounts never receive a PAT — Admin API routes require a
+     * browser session, and existing Admin PATs are rejected by EnsureAdminOrigin.
      *
      * @return array{user: User, token: ?string}
      */
@@ -137,7 +139,11 @@ class AuthenticationService
                 'last_login_at' => now(),
             ])->save();
 
-            return $browserSession ? null : $locked->createToken('auth')->plainTextToken;
+            if ($browserSession || $locked->isAdmin()) {
+                return null;
+            }
+
+            return $locked->createToken('auth')->plainTextToken;
         });
 
         return [

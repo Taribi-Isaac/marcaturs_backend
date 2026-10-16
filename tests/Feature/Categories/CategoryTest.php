@@ -60,7 +60,7 @@ class CategoryTest extends TestCase
 
     public function test_admin_can_create_update_and_deactivate_categories(): void
     {
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/categories', [
             'name' => 'Professional Services',
@@ -97,7 +97,7 @@ class CategoryTest extends TestCase
     public function test_duplicate_category_name_is_rejected(): void
     {
         Category::factory()->create(['name' => 'Logistics', 'slug' => 'logistics']);
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/categories', [
             'name' => 'Logistics',
@@ -108,7 +108,7 @@ class CategoryTest extends TestCase
 
     public function test_invalid_listing_status_is_rejected(): void
     {
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
 
         $this->postJson('/api/v1/admin/categories', [
             'name' => 'Construction',

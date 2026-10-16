@@ -49,7 +49,7 @@ class CampaignFeaturedTest extends TestCase
     public function test_admin_can_configure_featured_packages_and_business_reads_active_only(): void
     {
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/campaign-featured-packages', [
             'name' => '7-day Featured',
@@ -330,7 +330,7 @@ class CampaignFeaturedTest extends TestCase
             'package_id' => $package->id,
         ])->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->actingAsBrowserSession(User::factory()->admin()->create());
         $this->postJson('/api/v1/campaigns/'.$campaign->id.'/featured/initialize', [
             'package_id' => $package->id,
         ])->assertStatus(403);
@@ -369,7 +369,7 @@ class CampaignFeaturedTest extends TestCase
             ->assertJsonPath('data.0.id', $featuredCampaign->id);
 
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$featuredCampaign->id.'/suspend', [
             'reason' => 'Risk review.',
         ])->assertOk();
@@ -434,7 +434,7 @@ class CampaignFeaturedTest extends TestCase
         ])->assertOk();
 
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->patchJson('/api/v1/admin/campaign-featured-packages/'.$package->id, [
             'name' => 'Renamed package',
             'amount_minor' => 999999,
@@ -447,7 +447,7 @@ class CampaignFeaturedTest extends TestCase
             ->assertJsonPath('data.purchases.0.package_name', '7-day Featured')
             ->assertJsonPath('data.purchases.0.amount_minor', 250000);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/campaigns/'.$campaign->id.'/featured')
             ->assertOk()
             ->assertJsonPath('data.0.package_name', '7-day Featured');
@@ -514,7 +514,7 @@ class CampaignFeaturedTest extends TestCase
     {
         [$owner, $campaign] = $this->submittedCampaign();
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/approve')->assertOk();
         $this->postJson('/api/v1/admin/campaigns/'.$campaign->id.'/activate')->assertOk();
 

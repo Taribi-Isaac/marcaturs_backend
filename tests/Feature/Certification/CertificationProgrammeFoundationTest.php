@@ -42,7 +42,7 @@ class CertificationProgrammeFoundationTest extends TestCase
 
     public function test_verification_staff_cannot_view_or_manage_certification(): void
     {
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
 
         $this->getJson('/api/v1/admin/certification/programmes')
             ->assertStatus(403)
@@ -55,7 +55,7 @@ class CertificationProgrammeFoundationTest extends TestCase
 
     public function test_moderation_staff_cannot_manage_certification(): void
     {
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Moderation)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Moderation)->create());
 
         $this->getJson('/api/v1/admin/certification/programmes')
             ->assertStatus(403);
@@ -64,7 +64,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_operations_can_create_programme_and_version_lifecycle(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->postJson('/api/v1/admin/certification/programmes', [
             'name' => 'Ambassador Professional Certification',
@@ -168,7 +168,7 @@ class CertificationProgrammeFoundationTest extends TestCase
 
     public function test_super_admin_can_view_programmes(): void
     {
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::SuperAdmin)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::SuperAdmin)->create());
         CertificationProgramme::factory()->create();
 
         $this->getJson('/api/v1/admin/certification/programmes')
@@ -189,7 +189,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_only_one_draft_version_is_allowed(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $programme = CertificationProgramme::factory()->create();
         CertificationProgrammeVersion::factory()->for($programme, 'programme')->create(['version_number' => 1]);
 
@@ -201,7 +201,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_version_idor_mismatch_returns_not_found(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $first = CertificationProgramme::factory()->create();
         $second = CertificationProgramme::factory()->create();
@@ -276,7 +276,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_historical_published_version_remains_unchanged_after_new_publish(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::SuperAdmin)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $programme = CertificationProgramme::factory()->create();
         $v1 = CertificationProgrammeVersion::factory()->for($programme, 'programme')->publishable()->create([
@@ -306,7 +306,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_cannot_unpublish_non_current_published_version(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $programme = CertificationProgramme::factory()->create([
             'status' => CertificationProgrammeStatus::Published,
@@ -333,7 +333,7 @@ class CertificationProgrammeFoundationTest extends TestCase
     public function test_audit_events_are_recorded_for_version_updates(): void
     {
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $programme = CertificationProgramme::factory()->create();
         CertificationProgrammeVersion::factory()->for($programme, 'programme')->create();
 

@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Support\Api\ApiErrorCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AdminStaffRbacTest extends TestCase
@@ -26,7 +25,7 @@ class AdminStaffRbacTest extends TestCase
             'staff_role' => AdminStaffRole::SuperAdmin->value,
         ]);
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('data.staff_role', AdminStaffRole::SuperAdmin->value)
@@ -35,7 +34,7 @@ class AdminStaffRbacTest extends TestCase
 
     public function test_business_me_does_not_include_staff_fields(): void
     {
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
 
         $response = $this->getJson('/api/v1/auth/me')->assertOk();
         $this->assertArrayNotHasKey('staff_role', $response->json('data'));
@@ -45,7 +44,7 @@ class AdminStaffRbacTest extends TestCase
     public function test_verification_staff_can_view_overview_but_not_users_or_staff(): void
     {
         $staff = User::factory()->adminStaff(AdminStaffRole::Verification)->create();
-        Sanctum::actingAs($staff);
+        $this->actingAsBrowserSession($staff);
 
         $this->getJson('/api/v1/admin/overview')->assertOk();
         $this->getJson('/api/v1/admin/users')->assertStatus(403);
@@ -57,7 +56,7 @@ class AdminStaffRbacTest extends TestCase
     public function test_moderation_staff_cannot_manage_users_verification_config_or_disputes(): void
     {
         $staff = User::factory()->adminStaff(AdminStaffRole::Moderation)->create();
-        Sanctum::actingAs($staff);
+        $this->actingAsBrowserSession($staff);
 
         $this->getJson('/api/v1/admin/campaigns')->assertOk();
         $this->getJson('/api/v1/admin/conversations')->assertOk();
@@ -70,7 +69,7 @@ class AdminStaffRbacTest extends TestCase
     public function test_operations_cannot_manage_staff(): void
     {
         $ops = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($ops);
+        $this->actingAsBrowserSession($ops);
 
         $this->getJson('/api/v1/admin/users')->assertOk();
         $this->getJson('/api/v1/admin/staff')->assertStatus(403);
@@ -85,7 +84,7 @@ class AdminStaffRbacTest extends TestCase
     {
         Notification::fake();
         $super = User::factory()->admin()->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $invite = $this->postJson('/api/v1/admin/staff/invitations', [
             'name' => 'Verifier One',
@@ -97,7 +96,7 @@ class AdminStaffRbacTest extends TestCase
         $this->assertNotEmpty($token);
         $this->assertDatabaseCount('admin_staff_invitations', 1);
 
-        Sanctum::actingAs(User::factory()->business()->create());
+        $this->actingAsBrowserSession(User::factory()->business()->create());
         $this->postJson('/api/v1/auth/staff-invitations/accept', [
             'token' => $token,
             'password' => 'Password123!',
@@ -110,7 +109,7 @@ class AdminStaffRbacTest extends TestCase
         $this->assertNotNull($accepted);
         $this->assertTrue($accepted->adminStaffProfile?->staff_role === AdminStaffRole::Verification);
 
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
         $this->getJson('/api/v1/admin/staff')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 2);
@@ -120,7 +119,7 @@ class AdminStaffRbacTest extends TestCase
     {
         Notification::fake();
         $super = User::factory()->admin()->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $invite = $this->postJson('/api/v1/admin/staff/invitations', [
             'name' => 'Temp',
@@ -159,7 +158,7 @@ class AdminStaffRbacTest extends TestCase
     public function test_cannot_self_change_role_or_disable_and_last_super_admin_protected(): void
     {
         $super = User::factory()->admin()->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $this->patchJson("/api/v1/admin/staff/{$super->id}", [
             'staff_role' => AdminStaffRole::Operations->value,
@@ -170,12 +169,12 @@ class AdminStaffRbacTest extends TestCase
         ])->assertStatus(403);
 
         $ops = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
         $this->patchJson("/api/v1/admin/staff/{$ops->id}", [
             'staff_role' => AdminStaffRole::SuperAdmin->value,
         ])->assertOk();
 
-        Sanctum::actingAs($ops->fresh(['adminStaffProfile']));
+        $this->actingAsBrowserSession($ops->fresh(['adminStaffProfile']));
         $this->patchJson("/api/v1/admin/staff/{$super->id}", [
             'staff_role' => AdminStaffRole::Operations->value,
         ])->assertOk();
@@ -198,7 +197,7 @@ class AdminStaffRbacTest extends TestCase
         ]);
         $target->createToken('auth');
 
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
         $this->postJson("/api/v1/admin/staff/{$target->id}/disable", [
             'reason' => 'Access no longer required',
         ])->assertOk()
@@ -218,7 +217,7 @@ class AdminStaffRbacTest extends TestCase
     {
         $super = User::factory()->admin()->create();
         $business = User::factory()->business()->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $this->getJson("/api/v1/admin/staff/{$business->id}")->assertStatus(404);
         $this->postJson("/api/v1/admin/staff/{$business->id}/disable", [
@@ -231,7 +230,7 @@ class AdminStaffRbacTest extends TestCase
         Notification::fake();
         $super = User::factory()->admin()->create();
         User::factory()->business()->create(['email' => 'taken@example.com']);
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $this->postJson('/api/v1/admin/staff/invitations', [
             'name' => 'Taken',
@@ -244,7 +243,7 @@ class AdminStaffRbacTest extends TestCase
     public function test_direct_create_available_outside_production_only(): void
     {
         $super = User::factory()->admin()->create();
-        Sanctum::actingAs($super);
+        $this->actingAsBrowserSession($super);
 
         $this->postJson('/api/v1/admin/staff/direct', [
             'name' => 'Local Ops',

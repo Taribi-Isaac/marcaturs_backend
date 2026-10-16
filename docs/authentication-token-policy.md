@@ -15,9 +15,9 @@ MarcatursHub uses **two related credentials** under Sanctum:
 | Credential | How established | Primary consumers |
 | --- | --- | --- |
 | **Web session cookie** | Login/register with stateful API (`statefulApi` + CSRF) | Participant SPA, Admin Control (`credentials: 'include'`) |
-| **Personal Access Token (PAT)** | `createToken('auth')` returned as Bearer on login/register by **non-browser** clients only (MH-SEC-001) | API tooling, tests, future mobile |
+| **Personal Access Token (PAT)** | `createToken('auth')` returned as Bearer on login/register by **non-browser Business / Ambassador** clients only (MH-SEC-001 / MH-SEC-012) | Participant API tooling, tests, future mobile |
 
-First-party SPAs authenticate with **session cookies** only. Since MH-SEC-001 their login/register responses contain no PAT (see §7). PATs must still be purpose-bound and time-bounded because they are issued to tooling, can be copied, and may be used with `Authorization: Bearer`.
+First-party SPAs authenticate with **session cookies** only. Since MH-SEC-001 their login/register responses contain no PAT (see §7). **Admin accounts never receive a PAT** (MH-SEC-012); Admin API authorization uses the browser session only. Participant PATs must still be purpose-bound and time-bounded because they are issued to tooling, can be copied, and may be used with `Authorization: Bearer` on non-Admin routes.
 
 Architecture references: TAD §32 / ADR-007 (Sanctum/session; no JWT for first-party web).
 
@@ -52,7 +52,7 @@ No maximum cookie-session count is enforced in MH-BE-047.
 On successful **login** and **registration**:
 
 1. Revoke **all** existing Sanctum PATs for the user.
-2. Non-browser request: create **exactly one** new PAT named `auth` with the 7-day lifetime. First-party SPA request (Sanctum stateful session present): create **no** PAT (MH-SEC-001, §7).
+2. Create a PAT only when **all** of the following hold: the request is non-browser (no Sanctum stateful session), and the account is **Business or Ambassador**. First-party SPA requests create **no** PAT (MH-SEC-001, §7). **Admin** accounts create **no** PAT even on non-browser login (MH-SEC-012, §7).
 3. Establish/regenerate the **current** web session when a session is present (existing behaviour).
 
 Other browsers’ cookie sessions are **not** bulk-invalidated on login (no device-management product). Their PATs (if any) are revoked by step 1; cookie sessions continue until idle expiry or logout on that browser.
@@ -177,9 +177,9 @@ Implemented:
 
 ---
 
-## 7. Browser sessions, Bearer clients and the Admin origin boundary (MH-SEC-001)
+## 7. Browser sessions, Bearer clients and the Admin origin boundary (MH-SEC-001 / MH-SEC-012)
 
-### 7.1 The weakness that was closed
+### 7.1 The weaknesses that were closed
 
 Before MH-SEC-001:
 
@@ -188,15 +188,20 @@ Before MH-SEC-001:
 
 Together: if script ran on `app.*` (for example injected through participant content) while an Admin signed in there, it could read the Admin PAT from the login response. The participant SPA's automatic logout of Admin accounts runs only after that response. Script could then call `/api/v1/admin/*` from `app.*` with the token. CORS allows `app.*` with any header, and the shared `XSRF-TOKEN` cookie is readable there, so neither stopped it. Option A's purpose, keeping Admin requests unusable from the participant origin, was bypassed.
 
+MH-SEC-001 stopped issuing PATs to first-party SPAs and origin-bound cookie Admin requests. A remaining gap (MH-SEC-010 S7) was that a **valid Admin PAT with no `Origin`** could still authorize Admin APIs. Product/ops confirmed Admin bearer tooling is not used. **MH-SEC-012** closed that gap by rejecting all non-session credentials on Admin routes and stopping Admin PAT issuance.
+
 ### 7.2 Model now enforced
 
-| Client | How it is recognised | Credential | Admin routes |
-| --- | --- | --- | --- |
-| First-party SPA (participant app, Admin Control) | `Origin`/`Referer` host in `SANCTUM_STATEFUL_DOMAINS`, so Sanctum starts a session | HttpOnly session cookie + CSRF (`X-XSRF-TOKEN`). **No PAT is issued.** | Allowed only from `security.admin_origins` (`ADMIN_ALLOWED_ORIGINS`, default `ADMIN_FRONTEND_URL`) |
-| Browser script holding a Bearer token | Any request carrying an `Origin` header | PAT | Same origin rule as cookies: `Origin` must be an Admin origin, otherwise `403` |
-| Non-browser client (API tooling, future mobile) | No `Origin` header | PAT from its own login | Not origin-bound. Role, permission, account status and email verification still apply |
+| Client | How it is recognised | Credential | Admin routes (`/api/v1/admin/*`) | Non-Admin API |
+| --- | --- | --- | --- | --- |
+| Admin Control (browser) | Stateful Sanctum session → `TransientToken` | HttpOnly session cookie + CSRF. **No PAT.** | Allowed only when `Origin` is in `security.admin_origins` and role/permission/account-status pass | N/A (Admin uses Admin Control) |
+| Participant SPA (browser) | Stateful Sanctum session → `TransientToken` | HttpOnly session cookie + CSRF. **No PAT.** | Denied (`role:ADMIN` / origin) | Allowed per role and middleware |
+| Any client with an Admin PAT (including historical tokens) | `Authorization: Bearer` → personal access token (not `TransientToken`) | PAT | **Always denied** (`403` `forbidden`), whether `Origin` is absent, an allowed Admin origin, or disallowed | Not a supported Admin Control path. Login/register for Admin no longer issues a PAT. A historical Admin PAT row may still authenticate identity on non-Admin routes until revoked/expired; it must not authorize Admin APIs. |
+| Non-browser Business / Ambassador | No stateful session; Bearer PAT from login/register | PAT (7-day) | Denied by role | Allowed where participant Bearer auth is supported |
 
-Browsers always send `Origin` on cross-origin `fetch`/XHR, and the API host is cross-origin to both SPAs, so script cannot omit it. `Origin: null`, malformed values, other schemes, look-alike hosts and non-Admin origins are rejected. In production an empty Admin origin list rejects every browser Admin request (fail closed). Local/testing with no list configured is not enforced, as before.
+**Browser session vs PAT:** Sanctum attaches a `TransientToken` when the request is authenticated via the web session guard. That marks first-party browser session auth. A personal access token is a distinct credential. `EnsureAdminOrigin` requires `TransientToken` before applying Admin-origin binding, so omitting `Origin` cannot bypass the Admin Control session boundary.
+
+Browsers always send `Origin` on cross-origin `fetch`/XHR, and the API host is cross-origin to both SPAs, so script cannot omit it for cookie requests. `Origin: null`, malformed values, other schemes, look-alike hosts and non-Admin origins are rejected for session-authenticated Admin requests. In production an empty Admin origin list rejects every browser Admin request (fail closed). Local/testing with no list configured is not enforced for sessions, as before.
 
 ### 7.3 Separate controls
 
@@ -206,7 +211,8 @@ Each control is evaluated independently; none implies another.
 - **Account access** (`account.access`): suspended/banned/restricted rules, unchanged.
 - **Email verification** (`email.verified`): unchanged; admins exempt.
 - **Role** (`role:ADMIN`): a trusted origin never makes a user an admin. Business and Ambassador accounts get `403` on Admin routes from every origin and with every credential.
-- **Origin** (`admin.origin`): a valid admin credential never proves the browser request came from Admin Control.
+- **Admin session credential** (`admin.origin` / MH-SEC-012): Admin routes require a browser session (`TransientToken`). A PAT never authorizes Admin routes.
+- **Origin** (`admin.origin`): for session-authenticated Admin requests, proves the browser claimed the Admin Control origin. A valid Admin identity never proves that by itself.
 - **Permission** (`permission:*`): staff role permissions, unchanged.
 - **CSRF** (Sanctum stateful middleware): state-changing cookie requests need a valid `X-XSRF-TOKEN`, otherwise `419`. CSRF stops other *sites* from forging requests. It does **not** stop script on `app.*`, which can read the shared `XSRF-TOKEN` cookie; that is what the origin check is for.
 - **CORS** (`CORS_ALLOWED_ORIGINS`): only controls which browser origins may *read* responses. It is not authorization and does not stop a request from reaching the server.
@@ -214,15 +220,15 @@ Each control is evaluated independently; none implies another.
 ### 7.4 Credential handling
 
 - SPA login/register responses contain only `user`. The session cookie is `HttpOnly`.
-- PATs are returned once, in the login/register response body of non-browser clients, and are stored hashed.
-- Logout revokes every PAT and invalidates the current session. Login/register revokes every earlier PAT, including after a browser login.
+- Non-browser **Business / Ambassador** login/register responses may include a hashed-stored PAT once. **Admin** login/register responses never include a PAT (MH-SEC-012).
+- Logout revokes every PAT and invalidates the current session. Login/register revokes every earlier PAT, including after a browser or Admin login.
 - No application code logs `Authorization` headers, PATs or session ids. Error responses use fixed messages (no token, header or exception text when `APP_DEBUG=false`); covered by `BrowserSessionBoundaryTest`.
-- Existing production PATs and sessions are not revoked by this change. Any PAT previously issued to a browser expires within 7 days or at the user's next login/logout.
+- MH-SEC-012 does **not** bulk-delete historical Admin PAT rows from the database. Rejection is enforced at the Admin route middleware. Rows are cleared on the user's next login/logout/reset/suspend/ban (existing rotation rules) or when they expire (7 days).
 
 ### 7.5 Remaining limitations
 
-- A PAT or password stolen and used **outside** a browser (no `Origin`) is not stopped by origin checks. Origin binding only constrains script confined to a browser. Mitigations remain the 7-day expiry, revocation on login/logout/reset/suspend, role/permission checks, and (future) MFA.
-- Whether Admin accounts should be allowed to obtain PATs at all is a separate product decision; today API tooling depends on it.
+- For **participant** Bearer clients, a stolen PAT or password used outside a browser (no `Origin`) is not stopped by Admin-origin binding; that binding applies to Admin session requests. Mitigations remain the 7-day PAT expiry, revocation on login/logout/reset/suspend, role/permission checks, and (future) MFA.
+- **Admin** PATs are not accepted for Admin API authorization. Admin accounts do not receive a PAT from the supported login/register flow. Historical Admin PAT rows, if any remain stored, still must not authorize `/api/v1/admin/*`; they are not treated as an accepted residual Admin access path.
 - The participant and Admin SPAs still share one session cookie (`SESSION_DOMAIN`). Separate cookies or a separate Admin API host (Options B/C) remain possible later hardening.
 - The SPA TypeScript types still declare `token`/`token_type` on login/register results. They are never read at runtime; the types should be made optional in a frontend change.
 

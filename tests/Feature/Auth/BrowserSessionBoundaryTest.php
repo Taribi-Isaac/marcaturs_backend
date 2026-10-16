@@ -117,11 +117,17 @@ class BrowserSessionBoundaryTest extends TestCase
         $admin = User::factory()->admin()->create(['password' => 'password123']);
         $business = User::factory()->business()->create(['password' => 'password123']);
 
-        $adminToken = $this->tokenLogin($admin->email);
-        $businessToken = $this->tokenLogin($business->email);
+        $adminLogin = $this->bearer('POST', '/api/v1/auth/login', null, [
+            'email' => $admin->email,
+            'password' => 'password123',
+        ])->assertOk();
+        $adminLogin->assertJsonMissingPath('data.token')
+            ->assertJsonMissingPath('data.token_type')
+            ->assertJsonPath('data.user.id', $admin->id);
+        $this->assertSame(['user'], array_keys($adminLogin->json('data')));
+        $this->assertDatabaseCount('personal_access_tokens', 0);
 
-        $this->bearer('GET', '/api/v1/admin/overview', $adminToken)->assertOk();
-        $this->bearer('GET', '/api/v1/admin/users', $adminToken)->assertOk();
+        $businessToken = $this->tokenLogin($business->email);
         $this->bearer('GET', '/api/v1/auth/me', $businessToken)->assertOk()->assertJsonPath('data.id', $business->id);
         $this->bearer('GET', '/api/v1/verification/status', $businessToken)->assertOk();
 
@@ -135,18 +141,23 @@ class BrowserSessionBoundaryTest extends TestCase
         $this->assertIsString($register->json('data.token'));
     }
 
-    public function test_a_bearer_token_does_not_bypass_the_admin_origin_boundary_from_a_browser(): void
+    public function test_an_admin_bearer_token_cannot_authorize_admin_routes_regardless_of_origin(): void
     {
         $admin = User::factory()->admin()->create(['password' => 'password123']);
-        $token = $this->tokenLogin($admin->email);
+        // Pre-existing PAT (e.g. issued before MH-SEC-012) must still be rejected on Admin routes.
+        $token = $admin->createToken('auth')->plainTextToken;
 
-        foreach ([self::APP_ORIGIN, 'null', 'https://evil.example', 'https://admin.marcaturshub.com.ng.evil.example', 'http://admin.marcaturshub.com.ng', 'not a url', ''] as $origin) {
-            $this->bearer('GET', '/api/v1/admin/overview', $token, [], ['Origin' => $origin])
+        foreach ([null, self::ADMIN_ORIGIN, self::APP_ORIGIN, 'null', 'https://evil.example', 'https://admin.marcaturshub.com.ng.evil.example', 'http://admin.marcaturshub.com.ng', ''] as $origin) {
+            $headers = $origin === null ? [] : ['Origin' => $origin];
+            $this->bearer('GET', '/api/v1/admin/overview', $token, [], $headers)
                 ->assertStatus(403)
-                ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+                ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN)
+                ->assertJsonMissingPath('data');
+            $this->bearer('GET', '/api/v1/admin/users', $token, [], $headers)
+                ->assertStatus(403)
+                ->assertJsonMissingPath('data');
         }
 
-        // Script on the participant origin can read the shared XSRF cookie, so CSRF does not stop it.
         $this->browser('GET', '/sanctum/csrf-cookie', self::APP_ORIGIN)->assertNoContent();
         $stolen = ['Authorization' => 'Bearer '.$token];
         $this->browser('GET', '/api/v1/admin/users', self::APP_ORIGIN, [], $stolen)->assertStatus(403);
@@ -155,8 +166,10 @@ class BrowserSessionBoundaryTest extends TestCase
             ->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
         $this->assertDatabaseMissing('categories', ['name' => 'Injected Category']);
 
-        $this->bearer('GET', '/api/v1/admin/overview', $token, [], ['Origin' => self::ADMIN_ORIGIN])->assertOk();
-        $this->bearer('GET', '/api/v1/admin/overview', $token)->assertOk();
+        // Non-Admin PAT behaviour is unchanged.
+        $business = User::factory()->business()->create(['password' => 'password123']);
+        $businessToken = $this->tokenLogin($business->email);
+        $this->bearer('GET', '/api/v1/auth/me', $businessToken)->assertOk();
     }
 
     public function test_an_admin_browser_session_cannot_be_used_from_the_participant_origin(): void
@@ -208,7 +221,7 @@ class BrowserSessionBoundaryTest extends TestCase
         $this->browserLogin(self::ADMIN_ORIGIN, $moderator->email)->assertOk();
         $this->browser('POST', '/api/v1/admin/categories', self::ADMIN_ORIGIN, ['name' => 'Moderator Category'])->assertStatus(403);
 
-        $token = $this->tokenLogin($moderator->email);
+        $token = $moderator->createToken('auth')->plainTextToken;
         $this->bearer('POST', '/api/v1/admin/categories', $token, ['name' => 'Moderator Category'])->assertStatus(403);
         $this->assertDatabaseMissing('categories', ['name' => 'Moderator Category']);
     }
@@ -269,19 +282,19 @@ class BrowserSessionBoundaryTest extends TestCase
 
     public function test_bearer_logout_and_a_new_login_revoke_earlier_tokens(): void
     {
-        $admin = User::factory()->admin()->create(['password' => 'password123']);
+        $business = User::factory()->business()->create(['password' => 'password123']);
 
-        $first = $this->tokenLogin($admin->email);
-        $second = $this->tokenLogin($admin->email);
-        $this->bearer('GET', '/api/v1/admin/overview', $first)->assertStatus(401);
-        $this->bearer('GET', '/api/v1/admin/overview', $second)->assertOk();
+        $first = $this->tokenLogin($business->email);
+        $second = $this->tokenLogin($business->email);
+        $this->bearer('GET', '/api/v1/auth/me', $first)->assertStatus(401);
+        $this->bearer('GET', '/api/v1/auth/me', $second)->assertOk();
 
         $this->bearer('POST', '/api/v1/auth/logout', $second)->assertOk();
-        $this->bearer('GET', '/api/v1/admin/overview', $second)->assertStatus(401);
+        $this->bearer('GET', '/api/v1/auth/me', $second)->assertStatus(401);
 
-        $third = $this->tokenLogin($admin->email);
-        $this->browserLogin(self::ADMIN_ORIGIN, $admin->email)->assertOk();
-        $this->bearer('GET', '/api/v1/admin/overview', $third)->assertStatus(401);
+        $third = $this->tokenLogin($business->email);
+        $this->browserLogin(self::APP_ORIGIN, $business->email)->assertOk();
+        $this->bearer('GET', '/api/v1/auth/me', $third)->assertStatus(401);
     }
 
     public function test_account_status_rules_are_unchanged_for_browser_sessions_and_tokens(): void
@@ -301,7 +314,7 @@ class BrowserSessionBoundaryTest extends TestCase
         $this->jar = [];
         $admin = User::factory()->admin()->create(['password' => 'password123']);
         $this->browserLogin(self::ADMIN_ORIGIN, $admin->email)->assertOk();
-        $token = $this->tokenLogin($admin->email);
+        $token = $admin->createToken('auth')->plainTextToken;
         $admin->forceFill(['status' => 'banned'])->save();
 
         $this->browser('GET', '/api/v1/admin/overview', self::ADMIN_ORIGIN)
@@ -331,7 +344,7 @@ class BrowserSessionBoundaryTest extends TestCase
         $this->browserLogin(self::APP_ORIGIN, $outsider->email)->assertOk();
         $this->browser('POST', '/api/broadcasting/auth', self::APP_ORIGIN, $channel)->assertStatus(403);
 
-        $adminToken = $this->tokenLogin($admin->email);
+        $adminToken = $admin->createToken('auth')->plainTextToken;
         $this->bearer('POST', '/api/broadcasting/auth', $adminToken, $channel)->assertStatus(403);
         $this->jar = [];
         $this->browser('GET', '/sanctum/csrf-cookie', self::APP_ORIGIN)->assertNoContent();
@@ -353,13 +366,14 @@ class BrowserSessionBoundaryTest extends TestCase
 
         $admin = User::factory()->admin()->create(['password' => 'password123']);
         $this->browserLogin(self::ADMIN_ORIGIN, $admin->email)->assertOk();
-        $token = $this->tokenLogin($admin->email);
+        $token = $admin->createToken('auth')->plainTextToken;
         $session = $this->jar[config('session.cookie')] ?? '';
         $this->assertNotSame('', $session);
 
         $responses = [
             $this->bearer('GET', '/api/v1/__mh-sec-001/explode', $token)->assertStatus(500),
             $this->bearer('GET', '/api/v1/admin/overview', $token, [], ['Origin' => self::APP_ORIGIN])->assertStatus(403),
+            $this->bearer('GET', '/api/v1/admin/overview', $token)->assertStatus(403),
             $this->bearer('GET', '/api/v1/admin/overview', $token.'tampered')->assertStatus(401),
             $this->browser('GET', '/api/v1/admin/overview', self::APP_ORIGIN)->assertStatus(403),
             $this->browser('POST', '/api/v1/auth/logout', self::ADMIN_ORIGIN, [], [], false)->assertStatus(419),

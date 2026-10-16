@@ -130,7 +130,7 @@ class CertificationAssessmentFoundationTest extends TestCase
     public function test_admin_can_manage_draft_assessment_and_single_choice_questions(): void
     {
         $stack = $this->draftVersionStack();
-        Sanctum::actingAs($stack['admin']);
+        $this->actingAsBrowserSession($stack['admin']);
         $base = $stack['base'];
 
         $this->postJson("{$base}/assessment", [
@@ -203,7 +203,7 @@ class CertificationAssessmentFoundationTest extends TestCase
     public function test_question_validation_requires_exactly_one_correct_option(): void
     {
         $stack = $this->draftVersionStack();
-        Sanctum::actingAs($stack['admin']);
+        $this->actingAsBrowserSession($stack['admin']);
         $this->postJson("{$stack['base']}/assessment", ['title' => 'NON-PRODUCTION Assessment'])->assertCreated();
 
         $this->postJson("{$stack['base']}/assessment/questions", [
@@ -228,7 +228,7 @@ class CertificationAssessmentFoundationTest extends TestCase
     public function test_published_version_assessment_is_immutable(): void
     {
         $stack = $this->draftVersionStack();
-        Sanctum::actingAs($stack['admin']);
+        $this->actingAsBrowserSession($stack['admin']);
         $this->postJson("{$stack['base']}/assessment", ['title' => 'NON-PRODUCTION Assessment'])->assertCreated();
         $this->postJson("{$stack['base']}/assessment/questions", [
             'prompt' => 'Q',
@@ -264,7 +264,7 @@ class CertificationAssessmentFoundationTest extends TestCase
         Sanctum::actingAs(User::factory()->ambassador()->create());
         $this->postJson("{$stack['base']}/assessment", ['title' => 'Nope'])->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
         $this->getJson("{$stack['base']}/assessment")->assertStatus(403);
     }
 
@@ -313,7 +313,7 @@ class CertificationAssessmentFoundationTest extends TestCase
             ->assertStatus(403);
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $v2 = $this->postJson("/api/v1/admin/certification/programmes/{$stack['programme']->id}/versions", [
             'fee_amount_minor' => 2500000,
             'pass_mark_percent' => 90,
@@ -352,7 +352,7 @@ class CertificationAssessmentFoundationTest extends TestCase
     public function test_cross_version_question_id_is_not_found(): void
     {
         $stack = $this->draftVersionStack();
-        Sanctum::actingAs($stack['admin']);
+        $this->actingAsBrowserSession($stack['admin']);
         $this->postJson("{$stack['base']}/assessment", ['title' => 'A'])->assertCreated();
         $q1 = (int) $this->postJson("{$stack['base']}/assessment/questions", [
             'prompt' => 'Q1',

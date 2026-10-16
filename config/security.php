@@ -28,13 +28,14 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Admin origin binding (Option A)
+    | Admin origin binding (Option A) + session-only Admin API (MH-SEC-012)
     |--------------------------------------------------------------------------
     |
-    | Browser /api/v1/admin/* requests (cookie session, or Bearer with an Origin
-    | header) must carry one of these exact Origin values (EnsureAdminOrigin).
-    | Defaults to ADMIN_FRONTEND_URL. Empty in production rejects every browser
-    | Admin request.
+    | Protected /api/v1/admin/* requests require a first-party browser session
+    | (Sanctum TransientToken). Bearer/PAT credentials are rejected regardless
+    | of Origin. Cookie-authenticated requests must also carry one of these
+    | exact Origin values (EnsureAdminOrigin). Defaults to ADMIN_FRONTEND_URL.
+    | Empty in production rejects every browser Admin request.
     |
     */
 

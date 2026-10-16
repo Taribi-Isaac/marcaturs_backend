@@ -29,7 +29,7 @@ class AdminDisputeListFilterTest extends TestCase
         $this->seedDispute($deal, DisputeStatus::UnderReview);
         $admin = User::factory()->admin()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/disputes')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 2)
@@ -67,7 +67,7 @@ class AdminDisputeListFilterTest extends TestCase
         $this->seedDispute($deal, DisputeStatus::Resolved);
         $admin = User::factory()->admin()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $response = $this->getJson('/api/v1/admin/disputes?status=submitted')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 1)
@@ -86,7 +86,7 @@ class AdminDisputeListFilterTest extends TestCase
         }
         $admin = User::factory()->admin()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         foreach (DisputeStatus::cases() as $status) {
             $response = $this->getJson('/api/v1/admin/disputes?status='.$status->value)
                 ->assertOk()
@@ -102,7 +102,7 @@ class AdminDisputeListFilterTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->getJson('/api/v1/admin/disputes?status=not_a_real_status')
             ->assertStatus(400)
             ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR);
@@ -118,7 +118,7 @@ class AdminDisputeListFilterTest extends TestCase
         }
 
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $unfiltered = $this->getJson('/api/v1/admin/disputes')
             ->assertOk()
@@ -157,7 +157,7 @@ class AdminDisputeListFilterTest extends TestCase
         }
 
         $admin = User::factory()->admin()->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
 
         $this->getJson('/api/v1/admin/disputes?status=submitted')
             ->assertOk()

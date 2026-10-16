@@ -91,7 +91,7 @@ class CertificationEnrollmentBillingTest extends TestCase
             ->json('data.payment.reference');
 
         $admin = User::factory()->adminStaff(AdminStaffRole::Operations)->create();
-        Sanctum::actingAs($admin);
+        $this->actingAsBrowserSession($admin);
         $this->postJson("/api/v1/admin/certification/programmes/{$programme->id}/versions", [
             'fee_amount_minor' => 2500000,
             'pass_mark_percent' => 80,
@@ -210,11 +210,11 @@ class CertificationEnrollmentBillingTest extends TestCase
         $this->getJson("/api/v1/certification/enrollments/{$enrollmentId}")
             ->assertStatus(404);
 
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Verification)->create());
         $this->getJson('/api/v1/admin/certification/enrollments')
             ->assertStatus(403);
 
-        Sanctum::actingAs(User::factory()->adminStaff(AdminStaffRole::Operations)->create());
+        $this->actingAsBrowserSession(User::factory()->adminStaff(AdminStaffRole::Operations)->create());
         $this->getJson('/api/v1/admin/certification/enrollments')
             ->assertOk()
             ->assertJsonPath('data.0.id', $enrollmentId)
