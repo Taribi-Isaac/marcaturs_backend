@@ -231,7 +231,7 @@ Revokes all Sanctum personal access tokens for the user and invalidates the web 
 - **Non-browser Business / Ambassador clients** (API tooling such as Postman or `curl`, future mobile apps; no SPA `Origin`/`Referer`) receive `{ user, token, token_type: "Bearer" }`. The PAT is subject to the 7-day Sanctum expiration and may call participant APIs that accept Bearer auth.
 - **Non-browser Admin login** returns `{ user }` only (no PAT). Protected `/api/v1/admin/*` routes require a browser session credential (`TransientToken`) plus Admin-origin binding; a Bearer/PAT — including any token that still exists in the database — is rejected with `403` `forbidden` and no Admin payload, whether or not an `Origin` header is present.
 
-Both paths revoke every existing PAT for the user first, as before. Browser Admin Control authentication is unchanged (cookie + CSRF + `admin.origin`). See [authentication-token-policy.md](authentication-token-policy.md) §7; MH-SEC-012 supersedes the Admin Bearer “tooling” limitation described in §7.5 (policy file update tracked separately).
+Both paths revoke every existing PAT for the user first, as before. Browser Admin Control authentication is unchanged (cookie + CSRF + `admin.origin`). See [authentication-token-policy.md](authentication-token-policy.md) §7 (MH-SEC-001 / MH-SEC-012).
 
 ### Roles
 

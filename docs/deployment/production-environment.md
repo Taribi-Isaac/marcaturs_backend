@@ -17,7 +17,7 @@ Legend — **Req**: production breaks or is insecure without it. **Opt**: safe d
 | `APP_URL` | Req | no | `https://api.marcaturshub.com.ng` | Signed email-verification links, console URLs |
 | `FRONTEND_URL` | Req | no | `https://app.marcaturshub.com.ng` | Password reset, verify redirect, commission and `/pay/` share links, Paystack return URLs |
 | `ADMIN_FRONTEND_URL` | Req | no | `https://admin.marcaturshub.com.ng` | Staff invitation links (otherwise falls back to `FRONTEND_URL`); also the default Admin origin for Option A |
-| `ADMIN_ALLOWED_ORIGINS` | Opt | no | unset (defaults to `ADMIN_FRONTEND_URL`) | Comma-separated exact origins accepted for browser `/api/v1/admin/*` requests, cookie or Bearer (`EnsureAdminOrigin`, MH-SEC-001). Bearer requests without an `Origin` header (API tooling) are not origin-bound. Empty in production rejects every browser Admin request |
+| `ADMIN_ALLOWED_ORIGINS` | Opt | no | unset (defaults to `ADMIN_FRONTEND_URL`) | Comma-separated exact origins accepted for **browser-session** `/api/v1/admin/*` requests (`EnsureAdminOrigin`, MH-SEC-001 / MH-SEC-012). Bearer/PAT credentials never authorize Admin routes, with or without `Origin`. Empty in production rejects every browser Admin session request |
 | `ADMIN_URL` | Opt | no | `https://admin.marcaturshub.com.ng` | Local-only Reverb fallback; harmless in production |
 | `LOG_CHANNEL` / `LOG_STACK` | Req | no | `stack` / `daily` | Files in `shared/storage/logs`, redaction processor attached |
 | `LOG_LEVEL` | Opt | no | `info` | |
