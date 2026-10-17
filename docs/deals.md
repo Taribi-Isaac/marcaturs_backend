@@ -132,7 +132,7 @@ Requires:
 * for **percentage** commission: `confirmed_payment_amount` (Business-confirmed customer payment). Server calculates `commission_amount = confirmed_payment_amount × commission_rate / 100` with BCMath. Ambassador expected amount, evidence amount, and campaign price are not the principal.
 * for **fixed** commission: snapshot `commission_amount` is kept.
 
-Success: status `sealed`, `confirmed_at` set. In the **same transaction** a Commission row is created (`status=due`, `UNIQUE deal_id`) and events `payment_confirmed`, `deal_sealed`, `commission_due` are written. Metadata includes `commission_id` and submitted evidence IDs. Amount on Commission is copied from the sealed Deal (no second percentage formula). `due_at` = `confirmed_at` + `min(7, deal.commission_payment_deadline_days)` calendar days.
+Success: status `sealed`, `confirmed_at` set. In the **same transaction** a Commission row is created (`status=due`, `UNIQUE deal_id`) and events `payment_confirmed`, `deal_sealed`, `commission_due` are written. Metadata includes `commission_id` and submitted evidence IDs. Amount on Commission is copied from the sealed Deal (no second percentage formula). `due_at` = `confirmed_at` + `min(ceiling, deal.commission_payment_deadline_days)` calendar days, where `ceiling` defaults to **7** (`DEAL_COMMISSION_PAYMENT_CEILING_DAYS` / SoT §7.2). Campaign Version draft/publish validation uses the same ceiling so new terms cannot exceed it; stricter (shorter) campaign deadlines remain allowed.
 
 ## Commission liability (MH-BE-019) and settlement recording (MH-BE-020)
 

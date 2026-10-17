@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1\Campaigns;
 use App\Enums\CommissionTrigger;
 use App\Enums\CommissionType;
 use App\Enums\PricingMethod;
+use App\Support\Money\CommissionDeadline;
 use Illuminate\Validation\Rule;
 
 final class CampaignVersionTermRules
@@ -30,7 +31,7 @@ final class CampaignVersionTermRules
             'commission_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'commission_trigger' => ['sometimes', 'nullable', Rule::enum(CommissionTrigger::class)],
             'commission_trigger_description' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'commission_payment_deadline_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:365'],
+            'commission_payment_deadline_days' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:'.CommissionDeadline::ceilingDays()],
             'minimum_qualifying_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'qualifying_conditions' => ['sometimes', 'nullable', 'string', 'max:10000'],
             'refund_cancellation_rules' => ['sometimes', 'nullable', 'string', 'max:10000'],

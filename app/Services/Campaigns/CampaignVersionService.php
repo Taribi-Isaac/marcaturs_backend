@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Support\Api\ApiErrorCode;
 use App\Support\Api\ApiResponse;
 use App\Support\Campaigns\OfficialPaymentShare;
+use App\Support\Money\CommissionDeadline;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -225,7 +226,7 @@ class CampaignVersionService
             'pricing_method' => ['required', 'string'],
             'commission_type' => ['required', 'string'],
             'commission_trigger' => ['required', 'string'],
-            'commission_payment_deadline_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'commission_payment_deadline_days' => ['required', 'integer', 'min:1', 'max:'.CommissionDeadline::ceilingDays()],
             'refund_cancellation_rules' => ['required', 'string'],
             'payment_destination_name' => ['required', 'string', 'max:255'],
             'payment_provider' => ['required', 'string', 'max:255'],

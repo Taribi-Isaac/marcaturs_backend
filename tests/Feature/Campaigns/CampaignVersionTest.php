@@ -205,6 +205,177 @@ class CampaignVersionTest extends TestCase
         ])->assertStatus(400)->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR);
     }
 
+    public function test_commission_deadline_accepts_one_to_seven_days_on_drafts_and_publish(): void
+    {
+        [$owner, $campaign] = $this->ownedCampaign();
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', $this->publishablePayload())
+            ->assertCreated();
+
+        foreach ([1, 2, 3, 4, 5, 6, 7] as $days) {
+            $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+                'commission_payment_deadline_days' => $days,
+            ])
+                ->assertOk()
+                ->assertJsonPath('data.commission_payment_deadline_days', $days);
+        }
+
+        $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+            'commission_payment_deadline_days' => 1,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions/1/publish')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'published')
+            ->assertJsonPath('data.commission_payment_deadline_days', 1);
+    }
+
+    public function test_commission_deadline_outside_one_to_seven_days_is_rejected_on_drafts(): void
+    {
+        [$owner, $campaign] = $this->ownedCampaign();
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', $this->publishablePayload())
+            ->assertCreated();
+
+        foreach ([0, -1, 8, 30, 365, 7.5, 'abc', '7 days'] as $invalid) {
+            $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+                'commission_payment_deadline_days' => $invalid,
+            ])
+                ->assertStatus(400)
+                ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR)
+                ->assertJsonPath('error.message', 'The given data was invalid.')
+                ->assertJsonStructure(['error' => ['details' => ['commission_payment_deadline_days']]]);
+        }
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', [
+            'commission_payment_deadline_days' => 30,
+        ])->assertStatus(400);
+
+        $this->assertSame(7, CampaignVersion::query()->where('campaign_id', $campaign->id)->value('commission_payment_deadline_days'));
+    }
+
+    public function test_missing_commission_deadline_saves_as_draft_but_blocks_publish(): void
+    {
+        [$owner, $campaign] = $this->ownedCampaign();
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', $this->publishablePayload([
+            'commission_payment_deadline_days' => null,
+        ]))
+            ->assertCreated()
+            ->assertJsonPath('data.commission_payment_deadline_days', null);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions/1/publish')
+            ->assertStatus(400)
+            ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR)
+            ->assertJsonStructure(['error' => ['details' => ['commission_payment_deadline_days']]]);
+
+        $this->assertSame(
+            CampaignVersionStatus::Draft,
+            CampaignVersion::query()->where('campaign_id', $campaign->id)->firstOrFail()->status,
+        );
+    }
+
+    public function test_legacy_draft_with_deadline_above_ceiling_cannot_publish_until_corrected(): void
+    {
+        [$owner, $campaign] = $this->ownedCampaign();
+        CampaignVersion::factory()->for($campaign)->create([
+            'version_number' => 1,
+            'commission_payment_deadline_days' => 14,
+        ]);
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions/1/publish')
+            ->assertStatus(400)
+            ->assertJsonPath('error.code', ApiErrorCode::VALIDATION_ERROR)
+            ->assertJsonStructure(['error' => ['details' => ['commission_payment_deadline_days']]]);
+
+        $this->getJson('/api/v1/campaigns/'.$campaign->id.'/versions/1')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'draft')
+            ->assertJsonPath('data.commission_payment_deadline_days', 14);
+
+        $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+            'commission_payment_deadline_days' => 7,
+        ])->assertOk();
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions/1/publish')
+            ->assertOk()
+            ->assertJsonPath('data.commission_payment_deadline_days', 7);
+    }
+
+    public function test_published_historical_version_with_longer_deadline_is_not_rewritten(): void
+    {
+        [$owner, $campaign] = $this->ownedCampaign();
+        $historical = CampaignVersion::factory()->for($campaign)->published()->create([
+            'version_number' => 1,
+            'commission_payment_deadline_days' => 14,
+        ]);
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/v1/campaigns/'.$campaign->id.'/versions/1')
+            ->assertOk()
+            ->assertJsonPath('data.status', 'published')
+            ->assertJsonPath('data.commission_payment_deadline_days', 14);
+
+        $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+            'commission_payment_deadline_days' => 7,
+        ])->assertStatus(409);
+
+        $this->assertSame(14, $historical->fresh()->commission_payment_deadline_days);
+    }
+
+    public function test_deadline_validation_follows_the_deal_commission_ceiling(): void
+    {
+        config(['deals.commission_payment_ceiling_days' => 5]);
+        [$owner, $campaign] = $this->ownedCampaign();
+        Sanctum::actingAs($owner);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', $this->publishablePayload([
+            'commission_payment_deadline_days' => 6,
+        ]))->assertStatus(400);
+
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions', $this->publishablePayload([
+            'commission_payment_deadline_days' => 5,
+        ]))->assertCreated();
+    }
+
+    public function test_deadline_updates_keep_campaign_version_ownership_rules(): void
+    {
+        [, $campaign] = $this->ownedCampaign();
+        CampaignVersion::factory()->for($campaign)->create(['version_number' => 1]);
+
+        $intruder = User::factory()->business()->create();
+        BusinessProfile::factory()->for($intruder)->create();
+        Sanctum::actingAs($intruder);
+        $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+            'commission_payment_deadline_days' => 5,
+        ])->assertStatus(403)->assertJsonPath('error.code', ApiErrorCode::FORBIDDEN);
+
+        Sanctum::actingAs(User::factory()->ambassador()->create());
+        $this->patchJson('/api/v1/campaigns/'.$campaign->id.'/versions/1', [
+            'commission_payment_deadline_days' => 5,
+        ])->assertStatus(403);
+
+        Sanctum::actingAs(User::factory()->admin()->create());
+        $this->postJson('/api/v1/campaigns/'.$campaign->id.'/versions/1/publish')->assertStatus(403);
+
+        $this->assertSame(7, CampaignVersion::query()->where('campaign_id', $campaign->id)->value('commission_payment_deadline_days'));
+    }
+
+    /**
+     * @return array{0: User, 1: Campaign}
+     */
+    private function ownedCampaign(): array
+    {
+        $owner = User::factory()->business()->create();
+        BusinessProfile::factory()->for($owner)->create();
+
+        return [$owner, Campaign::factory()->for($owner)->create()];
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
