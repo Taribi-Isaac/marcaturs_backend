@@ -74,17 +74,32 @@ Notifications and the certificate PDF job are queued; without the worker no emai
 
 ## 3. Release pipeline
 
-Workflow: `.github/workflows/production.yml` (backend), `frontend/.github/workflows/production.yml`, `adminControl/.github/workflows/production.yml`.
+Workflow files, as reviewed in the clean checkouts (local HEAD was not freshly compared with remote `main`):
+
+- Backend: `backend-dev-main/.github/workflows/production.yml` (this repository’s `.github/workflows/production.yml`)
+- Participant: `frontend-dev-main/.github/workflows/production.yml` and `checks.yml`
+- Admin: `adminControl-dev-main/.github/workflows/production.yml` and `checks.yml`
+
+Workspace directories `frontend/` and `adminControl/` are protected dirty trees. Their `production.yml` files differ from the clean checkouts. Do not operate from those copies.
+
+Deploy jobs set GitHub Environment `production`. That gate is in the workflow source. Whether GitHub currently requires a reviewer on the environment was historically reported and was not re-read in MH-OPS-103.
 
 ```text
-pull request to main → backend-checks.yml (the same Pint + PHPUnit; no secrets, no environment, cannot deploy)
-merge to main → tests (Pint + PHPUnit / typecheck + lint + vitest) → build artifact
-manual "Run workflow" (deploy = true) on main
-  → GitHub Environment "production" approval (required reviewer)
-  → API: configuration check → upload artifact → deploy.sh release [--migrate] → smoke
-         → if the new release became current and a later step failed: deploy.sh rollback → smoke again
-         → job summary: active release, deploy and rollback outcome
-  → SPAs: guarded production build → wrangler pages deploy (Direct Upload)
+Backend (this repository)
+  pull request → backend-checks.yml (Pint + PHPUnit; no secrets, no environment, cannot deploy)
+  push to main → Test and build the release artifact; Deploy is skipped
+  manual Run workflow on main with deploy=true
+    → GitHub Environment "production" (source-defined gate; reviewer list not re-read)
+    → configuration check → upload artifact → deploy.sh release [--migrate] → smoke
+    → if the new release became current and a later step failed: deploy.sh rollback → smoke again
+    → job summary: active release, deploy and rollback outcome
+
+Participant Frontend and Admin Control (separate repositories)
+  pull request → checks.yml only (typecheck, lint, test, build; cannot deploy)
+  push to main → production.yml runs Checks and skips Deploy
+  manual Run workflow on main with deploy=true
+    → GitHub Environment "production" (same kind of source-defined gate)
+    → guarded production build → wrangler pages deploy (Direct Upload)
 ```
 
 `develop` never triggers production jobs. Deploy jobs refuse to run from any ref other than `main`.

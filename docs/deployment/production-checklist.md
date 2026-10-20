@@ -1,6 +1,6 @@
 # Production provisioning & go-live checklist (MH-OPS-006)
 
-Human-owned checklist for the Lightsail pilot. Nothing here has been provisioned. Work top to bottom; do not skip the verification gate.
+Human-owned checklist for the Lightsail pilot. This is the original MH-OPS-006 provisioning list. Later records include a Backend production deployment and two Cloudflare Pages projects (MH-OPS-104). A box below is complete only when a person has confirmed that item. This revision does not check the boxes and does not re-verify the Lightsail host. The active Backend release remains unknown (MH-OPS-102). Work top to bottom; do not skip the verification gate.
 
 ## 1. Human prerequisites (owner provides)
 
@@ -17,8 +17,8 @@ Human-owned checklist for the Lightsail pilot. Nothing here has been provisioned
 
 | Host | Type | Target | Proxy | Purpose |
 | --- | --- | --- | --- | --- |
-| `app` | CNAME | `<participant-project>.pages.dev` (added via Pages "Custom domain") | Proxied | Participant SPA |
-| `admin` | CNAME | `<admin-project>.pages.dev` | Proxied | Admin SPA |
+| `app` | CNAME | `marcaturshub-app.pages.dev` (MH-OPS-104 observation; custom domain `app.marcaturshub.com.ng`) | Proxied | Participant SPA |
+| `admin` | CNAME | `marcaturshub-admin.pages.dev` (MH-OPS-104 observation; custom domain `admin.marcaturshub.com.ng`) | Proxied | Admin SPA |
 | `api` | A | Lightsail static IP | **DNS only** | Laravel API (Nginx TLS) |
 | `ws` | A | Lightsail static IP | **DNS only** | Reverb WebSockets |
 | `@` (apex) | A/CNAME + Redirect Rule | Cloudflare redirect to `https://app.marcaturshub.com.ng` | Proxied | **Product to confirm** (alternative: serve the SPA on apex — then add the apex origin to CORS, Sanctum, Reverb and `VITE_PUBLIC_ORIGIN`) |
@@ -61,6 +61,9 @@ Do not invent record values; copy them from Cloudflare Pages, Lightsail and Rese
 - [ ] Cloudflare SSL mode "Full (strict)" for proxied hosts; "Always Use HTTPS" on; HSTS at the edge for `app`/`admin` once stable
 
 ### Cloudflare Pages
+
+MH-OPS-104 observed project `marcaturshub-app` (production alias `6dcae7ca.marcaturshub-app.pages.dev`) and project `marcaturshub-admin` (production alias `0cfca432.marcaturshub-admin.pages.dev`). Both showed “No Git connection.” Those aliases are inspection records, not Git commit SHAs, and they are not a guarantee of the deployment serving later.
+
 - [ ] Two **Direct Upload** projects (no Git integration): participant and admin
 - [ ] Custom domains `app.` and `admin.` attached
 - [ ] No `404.html` in the build so Pages serves `index.html` for SPA routes (current builds comply)

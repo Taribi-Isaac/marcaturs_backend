@@ -151,4 +151,6 @@ The deploy workflows fail if any of these is missing, uses `http://`, or points 
 | frontend | `CLOUDFLARE_API_TOKEN` (Pages:Edit), `CLOUDFLARE_ACCOUNT_ID` | `CF_PAGES_PROJECT` + the `VITE_*` above |
 | adminControl | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `CF_PAGES_PROJECT`, `VITE_API_BASE_URL`, `VITE_BACKEND_ORIGIN` |
 
-Configure the environment with **required reviewers** and restrict deployments to the `main` branch.
+MH-OPS-104 observed Cloudflare Pages projects `marcaturshub-app` (Participant) and `marcaturshub-admin` (Admin). The workflows pass `--project-name=${{ vars.CF_PAGES_PROJECT }}`. Each repository has its own `production` environment variable. Those GitHub variable values were not inspected.
+
+The documented environment setup is required reviewers and deployments limited to `main`. Whether those reviewer settings are still in place was not re-read in MH-OPS-103.

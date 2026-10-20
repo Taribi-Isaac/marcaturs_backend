@@ -97,7 +97,16 @@ The job always fails when the deployment failed, even if the rollback succeeded.
 
 ## Frontends (Cloudflare Pages)
 
-Cloudflare Pages keeps every deployment. Roll back from the project's **Deployments** list ("Rollback to this deployment"), or re-run the production workflow on an earlier `main` commit.
+The Participant and Admin production workflows cannot publish an arbitrary older commit. In `frontend-dev-main` and `adminControl-dev-main`, `.github/workflows/production.yml` deploys only when the event is `workflow_dispatch`, `deploy` is true, and `github.ref` is `refs/heads/main`. The job checks out that ref. There is no commit input and no rollback input.
+
+MH-OPS-104 (read-only Cloudflare dashboard) observed historical production deployment records on both projects, and a rollback control on each project. The control appeared enabled for the authorized Product operator. It was not used. Confirmation steps, the deployment the control would select, recovery success, and health after recovery were not recorded. A visible control is not evidence that a rollback succeeds.
+
+Before a separately authorized recovery:
+
+1. Open the Cloudflare account that owns the intended project: `marcaturshub-app` (Participant, `app.marcaturshub.com.ng`) or `marcaturshub-admin` (Admin, `admin.marcaturshub.com.ng`).
+2. Read the deployment that is marked production. MH-OPS-104 saw `6dcae7ca.marcaturshub-app.pages.dev` and `0cfca432.marcaturshub-admin.pages.dev`. Treat those aliases as that inspection’s record, not as commit SHAs and not as a promise they are still production.
+3. Choose an earlier **production** deployment from that project’s history. MH-OPS-104 also listed earlier production aliases `f89a355a`, `7e67995b`, and `716fa81a` on the Participant project, and `4511e6ac.marcaturshub-admin.pages.dev` on the Admin project. The dashboard did not state which of those is the immediate predecessor.
+4. Use the rollback control only after a separate Product authorization. Stop if the control is absent or disabled for the operator.
 
 ## Secrets / config
 
