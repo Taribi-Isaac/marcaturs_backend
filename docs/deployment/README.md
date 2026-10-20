@@ -20,6 +20,6 @@ Reference configuration: `infra/lightsail/` (Nginx, Supervisor, PHP, Redis, `dep
 | Layer | Status | Reason |
 | ----- | ------ | ------ |
 | Local application | GREEN | MH-PRE-004 regression (participant, Admin, backend suites) |
-| Repository deployment configuration | GREEN | Pilot env contract, Lightsail configs, approval-gated workflows, Resend SDK installed (MH-OPS-006) |
-| Production infrastructure | **NOT PROVISIONED** | Awaiting the human prerequisites in `production-checklist.md` §1 |
+| Repository deployment configuration | GREEN (source, MH-OPS-006) | Pilot env contract, Lightsail configs, workflows that set GitHub Environment `production`, Resend SDK installed. That environment gate is defined in the workflow files. Current GitHub reviewer permissions were not re-read in MH-OPS-103 |
+| Production infrastructure | **HISTORICALLY DEPLOYED — ACTIVE RELEASE UNKNOWN** | A Backend production deployment was recorded: release `20261017113503-fe295bc5bf44`, commit `fe295bc5bf4430f905d0ad6f4e1de69404b49807`, GitHub Deployment `7138938636`, Actions run `39029158956`. That record is not a fresh check of the host, services, or the release now serving. MH-OPS-102: Product authorized a read-only `deploy.sh status`; the authorized key-holder has not returned the output. The historical release id is not the current release identity |
 | Staging | **NOT PLANNED FOR PILOT** | Future `develop` environment |
