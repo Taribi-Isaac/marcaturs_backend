@@ -14,11 +14,17 @@ A release is **activated** only after `current` points at it, PHP-FPM reloaded, 
 
 Rollback targets come only from `state/active`. A directory in `releases/` that never completed activation is never a target, whatever its name.
 
+Read production status as the `deploy` account. `state/` is not readable by the `ubuntu` login.
+
 ```bash
-/var/www/marcaturshub/bin/deploy.sh status     # read-only
+sudo -n -u deploy /var/www/marcaturshub/bin/deploy.sh status
 ```
 
-prints `current`, `current_activated`, `recorded_active`, `recorded_previous`, `rollback_target`, `state` and `lock`.
+The command is read-only. It prints `current`, `current_activated`, `recorded_active`, `recorded_previous`, `rollback_target`, `state` and `lock`.
+
+`none` from an account that cannot read `state/` is not evidence that the deployment records are missing. On 2026-10-20, the same read-only command run as `ubuntu` printed `recorded_active=none`, `recorded_previous=none`, and `rollback_target=none` with `state=ok`. Re-run as `deploy` before treating the bookkeeping as empty.
+
+The Product owner then ran the `deploy` command above. It exited 0 and reported current release `20261017113503-fe295bc5bf44` with `current_activated=yes`, previous release and rollback target `20261016135712-0f924af61a6b`, `state=ok`, and `lock=free`. That is historical evidence of the host at that inspection. A later release or rollback replaces it. Take a fresh `deploy`-account status before relying on those ids.
 
 ### Exit codes
 

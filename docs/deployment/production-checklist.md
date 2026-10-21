@@ -1,6 +1,6 @@
 # Production provisioning & go-live checklist (MH-OPS-006)
 
-Human-owned checklist for the Lightsail pilot. This is the original MH-OPS-006 provisioning list. Later records include a Backend production deployment and two Cloudflare Pages projects (MH-OPS-104). A box below is complete only when a person has confirmed that item. This revision does not check the boxes and does not re-verify the Lightsail host. The active Backend release remains unknown (MH-OPS-102). Work top to bottom; do not skip the verification gate.
+Human-owned checklist for the Lightsail pilot. This is the original MH-OPS-006 provisioning list. Later records include a Backend production deployment and two Cloudflare Pages projects (MH-OPS-104). A box below is complete only when a person has confirmed that item. This revision does not check the boxes and does not re-verify the Lightsail host. The 2026-10-20 `deploy`-account status in [rollback.md](rollback.md) is historical evidence, not a standing host identity. Work top to bottom; do not skip the verification gate.
 
 ## 1. Human prerequisites (owner provides)
 
