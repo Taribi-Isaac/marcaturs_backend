@@ -185,3 +185,48 @@ File MIME/size follow the MH-BE-004 sensitive-upload convention because UX requi
 `product_name`, `pricing_method`, `price_amount`, `price_currency`, `commission_type`, `commission_rate`, `commission_amount`, `commission_trigger`, `commission_trigger_description`, `commission_payment_deadline_days`, `minimum_qualifying_amount`, `qualifying_conditions`.
 
 Later published versions do not rewrite these columns.
+
+## Application Ownership and Administrative Boundaries
+
+This section names which application calls the existing routes. Deal transitions, the commission deadline, and the money boundaries stay in the sections above.
+
+### Participant Frontend
+
+| Action | Caller | Endpoint |
+| --- | --- | --- |
+| Ambassador creates a deal | AMBASSADOR | `POST /api/v1/deals` |
+| Ambassador submits payment evidence | AMBASSADOR | `POST /api/v1/deals/{deal}/payment-evidence` |
+| Business confirms customer payment and seals the deal | BUSINESS | `POST /api/v1/deals/{deal}/confirm` |
+| Business declares the commission paid | BUSINESS | `POST /api/v1/commissions/{commission}/mark-paid` |
+| Ambassador confirms receipt | AMBASSADOR | `POST /api/v1/commissions/{commission}/confirm-received` |
+
+Receipt confirmation is the existing completion path. There is no separate complete-deal route.
+
+### Backend/API
+
+The API enforces those transitions. A qualifying Business confirmation creates the commission in that same transaction and applies the deadline defined under Payment confirmation. Mark-paid and confirm-received follow the settlement rules above. An Admin caller cannot settle a commission (`403`). There is no instalment route.
+
+### Admin Control
+
+Staff with `deals.view` may list a deal, show it, and download payment evidence:
+
+- `GET /api/v1/admin/deals`
+- `GET /api/v1/admin/deals/{deal}`
+- `GET /api/v1/admin/deals/{deal}/payment-evidence/{paymentEvidence}/download`
+
+There is no Admin route that confirms a deal, rejects evidence, marks a commission paid, or confirms receipt.
+
+Staff with `disputes.manage` may move a dispute case through the admin routes in [disputes.md](disputes.md). Resolving or closing a dispute does not change deal status and does not mark a commission paid or received.
+
+### Administrative permissions
+
+Names are `deals.view`, `disputes.view`, and `disputes.manage`, from `AdminPermissionMatrix`. `SUPER_ADMIN` holds every code-defined permission, including these three. There is no per-user override.
+
+| Staff role | `deals.view` | `disputes.view` | `disputes.manage` |
+| --- | --- | --- | --- |
+| `SUPER_ADMIN` | yes | yes | yes |
+| `OPERATIONS` | yes | yes | yes |
+| `MODERATION` | no | yes | no |
+| `VERIFICATION` | no | no | no |
+
+`disputes.manage` is case handling only. It is not commission settlement.
