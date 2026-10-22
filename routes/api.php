@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminVerificationController;
 use App\Http\Controllers\Api\V1\AmbassadorProfileController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessProfileController;
+use App\Http\Controllers\Api\V1\CampaignBookmarkController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CampaignCoverController;
 use App\Http\Controllers\Api\V1\CampaignExtensionController;
@@ -128,6 +129,7 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
             Route::get('/me', [AmbassadorProfileController::class, 'show'])->name('me.show');
             Route::post('/me', [AmbassadorProfileController::class, 'store'])->name('me.store');
             Route::patch('/me', [AmbassadorProfileController::class, 'update'])->name('me.update');
+            Route::get('/campaign-bookmarks', [CampaignBookmarkController::class, 'index'])->name('campaign-bookmarks.index');
         });
 
         Route::middleware('role:AMBASSADOR')->prefix('certification/programmes')->name('certification.programmes.')->group(function (): void {
@@ -206,6 +208,12 @@ Route::prefix('v1')->name('api.v1.')->group(function (): void {
         });
 
         Route::middleware('role:AMBASSADOR')->prefix('marketplace/campaigns')->name('marketplace.campaigns.')->group(function (): void {
+            Route::put('/{campaign}/bookmark', [CampaignBookmarkController::class, 'update'])
+                ->whereNumber('campaign')
+                ->name('bookmark.update');
+            Route::delete('/{campaign}/bookmark', [CampaignBookmarkController::class, 'destroy'])
+                ->whereNumber('campaign')
+                ->name('bookmark.destroy');
             Route::get('/{campaign}/resources/{resource}/download', [MarketplaceCampaignController::class, 'downloadResource'])
                 ->name('resources.download');
         });
