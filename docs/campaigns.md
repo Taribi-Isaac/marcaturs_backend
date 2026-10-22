@@ -112,7 +112,21 @@ Discoverable only when:
 | `price_min` / `price_max` | Published version `price_amount` |
 | `page` / `per_page` | Pagination (default 15, max 100) |
 
-Order is Featured campaigns first (`is_featured`), then newest listing (`listing_starts_at`, then `id`). Optional `featured=true|false` filter. Save/favourite is a later task. Detail exposes `payment_destination_name` and `payment_provider` only (not account identifiers). Detail also exposes `official_payment` share references (`token`, `path`, `share_path`, `share_url`) for Ambassadors to copy the Official Payment Information link. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
+Order is Featured campaigns first (`is_featured`), then newest listing (`listing_starts_at`, then `id`). Optional `featured=true|false` filter. Verified Ambassadors can save a discoverable campaign; see Saved campaigns below. Detail exposes `payment_destination_name` and `payment_provider` only (not account identifiers). Detail also exposes `official_payment` share references (`token`, `path`, `share_path`, `share_url`) for Ambassadors to copy the Official Payment Information link. Marketing **file metadata** appears on detail; file bytes are downloaded through authenticated ambassador/owner/admin endpoints.
+
+## Saved campaigns
+
+A verified Ambassador may bookmark a campaign that currently matches `discoverable()`. The same Sanctum, account-access, email-verification, and `role:AMBASSADOR` stack used for deal creation applies. Business and Admin callers receive `403`. A missing session receives `401`.
+
+| Action | Endpoint | Result |
+| --- | --- | --- |
+| Save | `PUT /api/v1/marketplace/campaigns/{campaign}/bookmark` | `200` with `campaign_id` and `bookmarked_at`. A campaign that is not discoverable returns `404`. Saving the same campaign again returns the existing row. |
+| Remove | `DELETE /api/v1/marketplace/campaigns/{campaign}/bookmark` | `204`. A repeated remove, or a campaign this Ambassador has not saved, is also `204`. |
+| List | `GET /api/v1/ambassadors/campaign-bookmarks` | Paginated with `page` and `per_page` (default 15, maximum 100). Newest `created_at` first, then `id`. |
+
+The list is limited to the signed-in Ambassador. Each item includes `bookmarked_at` and `discoverable`. A discoverable item includes the public marketplace card. An item whose campaign is no longer discoverable sets `discoverable` to `false` and includes only `campaign.id`, `campaign.title`, and `campaign.status`. It does not include commercial terms, cover images, or payment fields.
+
+A bookmark remains when the campaign later becomes inactive, expired, suspended, closed, or deactivated, and when the owning Business is no longer active. The Ambassador can still remove it. Permanently deleting the campaign or the Ambassador deletes the bookmark. Creating a deal does not read bookmarks, and a bookmark does not change deal eligibility.
 
 ## Official Payment Information (MH-BE-042)
 

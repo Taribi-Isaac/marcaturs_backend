@@ -145,4 +145,12 @@ class Campaign extends Model
     {
         return $this->hasMany(Deal::class);
     }
+
+    /**
+     * @return HasMany<CampaignBookmark, $this>
+     */
+    public function bookmarks(): HasMany
+    {
+        return $this->hasMany(CampaignBookmark::class);
+    }
 }

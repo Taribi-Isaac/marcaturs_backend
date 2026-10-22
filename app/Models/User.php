@@ -105,6 +105,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * @return HasMany<CampaignBookmark, $this>
+     */
+    public function campaignBookmarks(): HasMany
+    {
+        return $this->hasMany(CampaignBookmark::class, 'ambassador_user_id');
+    }
+
+    /**
      * @return HasMany<CertificationAward, $this>
      */
     public function certificationAwards(): HasMany
