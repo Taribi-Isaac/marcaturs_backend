@@ -23,6 +23,12 @@ Admin `GET /api/v1/admin/campaigns/{id}` expands `current_version` with the publ
 
 Version mutation is blocked while the campaign is `submitted`, `approved`, `suspended`, or `closed`.
 
+### Commission payment deadline (MH-PRE-004)
+
+`commission_payment_deadline_days` must be a whole number from 1 to the platform ceiling `deals.commission_payment_ceiling_days` (default 7, SoT §7.2) on draft create/update and on publish. The same ceiling drives the Deal due date (`CommissionDeadline::ceilingDays()`), so a published version cannot promise a longer deadline than the Deal engine honours. Values above the ceiling return 400 `validation_error` with `details.commission_payment_deadline_days`.
+
+Historical compatibility: versions published before this rule keep their stored value (published snapshots are immutable and are not migrated). Deals bound to them still use `min(ceiling, published)`. A legacy draft holding a longer deadline stays readable but cannot be published until the Business edits it to 1–7.
+
 ## Campaign lifecycle (MH-BE-007)
 
 ```text
