@@ -261,4 +261,67 @@ class PasswordResetTest extends TestCase
         Notification::assertSentTo($active, ResetPasswordNotification::class);
         Notification::assertSentTo($restricted, ResetPasswordNotification::class);
     }
+
+    public function test_admin_can_use_the_existing_password_reset_flow(): void
+    {
+        Notification::fake();
+        config(['app.frontend_url' => 'https://app.example.test']);
+
+        $admin = User::factory()->admin()->create([
+            'email' => 'admin-s03@example.com',
+            'password' => 'password123',
+        ]);
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => 'admin-s03@example.com',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.message', 'If that email address is registered, a password reset link has been sent.')
+            ->assertJsonMissingPath('data.token');
+
+        $token = null;
+        Notification::assertSentTo(
+            $admin,
+            ResetPasswordNotification::class,
+            function (ResetPasswordNotification $notification) use ($admin, &$token): bool {
+                $token = $notification->token;
+                $mail = $notification->toMail($admin);
+
+                return str_starts_with((string) $mail->actionUrl, 'https://app.example.test/reset-password?')
+                    && str_contains((string) $mail->actionUrl, 'token='.urlencode((string) $notification->token))
+                    && str_contains((string) $mail->actionUrl, 'email=admin-s03%40example.com');
+            },
+        );
+        $this->assertIsString($token);
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'email' => 'admin-s03@example.com',
+            'token' => $token,
+            'password' => 'new-password-456',
+            'password_confirmation' => 'new-password-456',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.message', 'Your password has been reset.')
+            ->assertJsonPath('data.user.role', 'ADMIN')
+            ->assertJsonMissingPath('data.token');
+
+        $admin->refresh();
+        $this->assertSame('ADMIN', $admin->role->value);
+        $this->assertSame('active', $admin->status->value);
+        $this->assertTrue(Hash::check('new-password-456', $admin->password));
+        $this->assertFalse(Hash::check('password123', $admin->password));
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin-s03@example.com',
+            'password' => 'password123',
+        ])->assertStatus(401);
+
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'admin-s03@example.com',
+            'password' => 'new-password-456',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.user.role', 'ADMIN')
+            ->assertJsonMissingPath('data.token');
+    }
 }
